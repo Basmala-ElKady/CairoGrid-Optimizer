@@ -5,13 +5,20 @@ class Edge:
     """Represents a road connection between two Nodes with dynamic weighting."""
     
     def __init__(self, source_id: str, target_id: str, distance: float, 
-                 capacity: int, condition: int):
+                 capacity: int, condition: int, traffic_profile: dict = None):
         self.source_id = source_id
         self.target_id = target_id
         self.distance = distance
-        self.capacity = capacity # vehicles/hour
-        self.condition = condition # Scale 1-10
+        self.capacity = capacity
+        self.condition = condition
+        
+        # Initialize the TrafficProfile object
         self.traffic = TrafficProfile()
+        
+        # If a dictionary was passed from the DataLoader, hydrate the profile
+        if traffic_profile:
+            for period, flow in traffic_profile.items():
+                self.traffic.update_flow(period, flow)
 
     def get_weight(self, period: TimePeriod) -> float:
         """
