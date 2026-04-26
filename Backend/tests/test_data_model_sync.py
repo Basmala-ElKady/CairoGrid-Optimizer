@@ -12,8 +12,9 @@ from models.enums import LocationType
 def test_data_with_models():
     print("🔗 Running Integration Test: Data + Models (Professional Sync Check)...")
     
-    districts_path = "data/processed/neighborhoods_districts.csv"
-    roads_path = "data/processed/existing_roads.csv"
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    districts_path = os.path.join(script_dir, "..", "data", "processed", "neighborhoods_districts.csv")
+    roads_path = os.path.join(script_dir, "..", "data", "processed", "existing_roads.csv")
 
     try:
         # 1. Load Nodes with Header Normalization

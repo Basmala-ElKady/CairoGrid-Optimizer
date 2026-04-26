@@ -14,9 +14,10 @@ def run_loader_test():
     print("🧪 Starting DataLoader Verification Test...\n")
 
     # Paths to processed data
-    districts_path = "data/processed/neighborhoods_districts.csv"
-    roads_path = "data/processed/existing_roads.csv"
-    traffic_path = "data/processed/traffic_flow.csv"
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    districts_path = os.path.join(script_dir, "..", "data", "processed", "neighborhoods_districts.csv")
+    roads_path = os.path.join(script_dir, "..", "data", "processed", "existing_roads.csv")
+    traffic_path = os.path.join(script_dir, "..", "data", "processed", "traffic_flow.csv")
 
     # 1. Test Node Loading
     districts = DataLoader.load_nodes(districts_path, LocationType.DISTRICT)

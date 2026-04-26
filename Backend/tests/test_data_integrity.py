@@ -4,7 +4,10 @@ import os
 def run_data_integrity_test():
     print("📂 Starting Raw Data Integrity Check...\n")
     
-    base_path = "data/processed/"
+    # Get the directory of this script and build the path to data
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    base_path = os.path.join(script_dir, "..", "data", "processed")
+    
     required_files = [
         "neighborhoods_districts.csv", "facilities.csv", "existing_roads.csv",
         "traffic_flow.csv", "bus_routes.csv", "metro_lines.csv",
