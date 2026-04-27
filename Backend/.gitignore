@@ -10,3 +10,5 @@ Thumbs.db
 
 # Data files (optional, if you don't want to push huge CSVs)
 #data/raw/
+.pytest_cache/
+.env
