@@ -8,7 +8,7 @@ def run_project_pipeline():
     # 1. Discover all tests in the 'Backend/tests' folder
     loader = unittest.TestLoader()
     # Assuming your tests are in Backend/tests
-    start_dir = 'Backend/tests'
+    start_dir = './Backend/tests'
     
     suite = loader.discover(start_dir, pattern='test_*.py')
     
