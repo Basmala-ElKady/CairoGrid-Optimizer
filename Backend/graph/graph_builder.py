@@ -1,7 +1,7 @@
 from typing import List
 
-from models.node import Node
-from models.edge import Edge
+from Backend.models.node import Node
+from Backend.models.edge import Edge
 from .transport_graph import TransportGraph
 
 class GraphBuilder:

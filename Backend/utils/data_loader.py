@@ -1,8 +1,8 @@
 import pandas as pd
 from typing import List
-from models.node import Node
-from models.edge import Edge
-from models.enums import LocationType, TimePeriod
+from Backend.models.node import Node
+from Backend.models.edge import Edge
+from Backend.models.enums import LocationType, TimePeriod
 
 class DataLoader:
     @staticmethod

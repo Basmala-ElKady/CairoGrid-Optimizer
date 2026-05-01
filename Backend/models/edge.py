@@ -20,21 +20,37 @@ class Edge:
             for period, flow in traffic_profile.items():
                 self.traffic.update_flow(period, flow)
 
-    def get_weight(self, period: TimePeriod) -> float:
+    def get_weight(self, period: TimePeriod, debug: bool = False) -> float:
         """
-        Calculates dynamic travel cost. 
-        Formula: Distance * (1 + CongestionFactor + RoadPenalty)
+        Calculates dynamic travel cost with STRONG time-dependent effect.
+        
+        Formula: distance * (1 + (flow/capacity)^2) * (11/condition)
+        
+        - Quadratic congestion: high traffic has exponential cost increase
+        - Condition multiplier: poor road condition dramatically increases cost
+        - Morning peak / evening peak produce HIGH cost
+        - Night produces LOW cost
         """
         flow = self.traffic.get_flow(period)
         
-        # Congestion factor: ratio of current flow to max capacity
+        # STRONG quadratic congestion factor: (flow/capacity)^2
+        # This ensures rush hour (high flow) produces much higher cost
         congestion = (flow / self.capacity) if self.capacity > 0 else 0
+        congestion_factor = 1.0 + (congestion ** 2)  # Quadratic: 1-100 range for typical flows
         
-        # Condition penalty: Lower condition score increases travel time/cost
-        condition_penalty = (11 - self.condition) * 0.1 
+        # Condition multiplier: lower condition (1-10 scale) increases cost
+        # condition=10 → 1.1x, condition=1 → 11x multiplier
+        condition_multiplier = 11.0 / max(1, self.condition)
         
-        # Final weight calculation for Dijkstra/A*
-        dynamic_weight = self.distance * (1 + congestion + condition_penalty)
+        # Final weight calculation: distance * congestion * condition
+        dynamic_weight = self.distance * congestion_factor * condition_multiplier
+        
+        if debug:
+            print(f"[EDGE DEBUG] {self.source_id}->{self.target_id} | period={period.value} | "
+                  f"flow={flow:.0f} cap={self.capacity} | congestion_factor={congestion_factor:.2f} | "
+                  f"condition={self.condition} cond_mult={condition_multiplier:.2f} | "
+                  f"cost={dynamic_weight:.3f}", flush=True)
+        
         return round(dynamic_weight, 3)
 
     def __repr__(self):
