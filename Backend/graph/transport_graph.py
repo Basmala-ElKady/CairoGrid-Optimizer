@@ -44,3 +44,14 @@ class TransportGraph:
     def get_node(self, node_id: str) -> Optional[Node]:
         """Fetch Node object if stored."""
         return self.nodes.get(str(node_id))
+    
+    def get_incoming_edges(self, node_id: str) -> List[Edge]:
+        node_id = str(node_id)
+        incoming = []
+
+        for edges in self.adjacency_list.values():
+            for edge in edges:
+                if str(edge.target_id) == node_id:
+                    incoming.append(edge)
+
+        return incoming
