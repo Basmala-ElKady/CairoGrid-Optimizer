@@ -95,22 +95,25 @@ def test_astar_emergency_priority_effect():
     g = build_graph_time_dependent()
     algo = AStarAlgorithm()
 
+    # Normal mode (baseline)
     res_normal = algo.run(
         g,
         'A',
         goal_nodes=['F9'],
         goal_positions={'F9': g.get_node('F9').pos},
         initial_time=8.0,
-        emergency_priority=1.0
+        is_emergency=False
     )
 
+    # Emergency mode with 20% speed boost (base_emergency_multiplier=0.8)
     res_em = algo.run(
         g,
         'A',
         goal_nodes=['F9'],
         goal_positions={'F9': g.get_node('F9').pos},
         initial_time=8.0,
-        emergency_priority=0.05
+        is_emergency=True,
+        base_emergency_multiplier=0.8
     )
 
     print("\n========== EMERGENCY TEST ==========")
@@ -119,7 +122,9 @@ def test_astar_emergency_priority_effect():
     print("IMPROVEMENT:", res_normal['cost'] - res_em['cost'])
     print("====================================")
 
-    assert res_em['cost'] <= res_normal['cost']
+    # Emergency should have lower or equal cost
+    assert res_em['cost'] <= res_normal['cost'], \
+        f"Emergency cost {res_em['cost']} should be <= normal cost {res_normal['cost']}"
 
 
 def test_intersection_priority_effect():
@@ -147,12 +152,28 @@ def test_intersection_priority_effect():
     algo = AStarAlgorithm()
 
     # baseline (no emergency)
-    res_norm = algo.run(g, 'A', end_node='G')
+    res_norm = algo.run(g, 'A', end_node='G', is_emergency=False)
 
     # setup intersection priority to favor emergency through node I
     ip = IntersectionPriority(default_emergency_multiplier=0.5)
     ip.set_override('I', 0.4)
 
-    res_em = algo.run(g, 'A', end_node='G', is_emergency=True, intersection_priority=ip)
+    # emergency mode with base multiplier + intersection bonus
+    res_em = algo.run(
+        g,
+        'A',
+        end_node='G',
+        is_emergency=True,
+        base_emergency_multiplier=0.8,  # 20% global speed boost
+        intersection_priority=ip         # additional 40-50% discount at intersection
+    )
 
-    assert res_em['cost'] <= res_norm['cost']
+    print("\n========== INTERSECTION PRIORITY TEST ==========")
+    print("NORMAL COST:", res_norm['cost'])
+    print("EMERGENCY COST:", res_em['cost'])
+    print("REDUCTION:", res_norm['cost'] - res_em['cost'])
+    print("PERCENT REDUCTION:", round((1 - res_em['cost']/res_norm['cost']) * 100, 1), "%")
+    print("================================================")
+
+    assert res_em['cost'] <= res_norm['cost'], \
+        f"Emergency cost {res_em['cost']} should be <= normal cost {res_norm['cost']}"

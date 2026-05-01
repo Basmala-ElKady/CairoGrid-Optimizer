@@ -86,12 +86,15 @@ class EmergencyService:
         print(f"[DEBUG] EmergencyService: Running A* to {hospital_id}", flush=True)
         
         # 2. run A* with single goal
+        # Emergency vehicles get 20% speed boost globally (base_emergency_multiplier=0.8)
+        # Plus optional additional discount at intersections via intersection_priority
         result = self.astar.run(
             graph=self.graph,
             start_node=start_node,
             end_node=hospital_id,
             initial_time=current_time,
             is_emergency=is_emergency,
+            base_emergency_multiplier=0.8 if is_emergency else 1.0,  # 20% faster when emergency
             intersection_priority=self.intersection_priority,
             mode="realistic"
         )

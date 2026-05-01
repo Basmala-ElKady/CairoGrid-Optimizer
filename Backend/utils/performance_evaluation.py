@@ -142,14 +142,44 @@ def evaluate_algorithms(
         ast_nodes = int(ast_nodes) if ast_nodes not in (None, float('inf')) else 0
         ast_cost = float(ast_cost) if ast_cost not in (None,) else float('inf')
 
-        # Improvements
+        # Improvements with proper handling of edge cases
         nodes_improvement = 0.0
-        if dij_nodes != 0:
-            nodes_improvement = (dij_nodes - ast_nodes) / float(dij_nodes) * 100.0
+        if dij_nodes > 0:
+            nodes_improvement = ((dij_nodes - ast_nodes) / float(dij_nodes)) * 100.0
 
+        # Fixed formula: use max() to avoid division by zero
         cost_improvement = 0.0
-        if dij_cost not in (0, float('inf')) and ast_cost != float('inf'):
-            cost_improvement = (dij_cost - ast_cost) / float(dij_cost) * 100.0
+        if dij_cost != float('inf') and ast_cost != float('inf'):
+            cost_improvement = ((dij_cost - ast_cost) / max(dij_cost, 1e-9)) * 100.0
+
+        # Speedup metric: time comparison (% faster)
+        speedup_pct = 0.0
+        if dij_time > 1e-6:  # Avoid division by very small times
+            speedup_pct = ((dij_time - ast_time) / dij_time) * 100.0
+
+        # Efficiency score: combined metric (cost reduction is primary)
+        # If costs are nearly equal, prefer algorithm with fewer node expansions
+        efficiency_score = 0.0
+        if abs(dij_cost - ast_cost) < 1e-6:  # Costs essentially equal
+            efficiency_score = ((dij_nodes - ast_nodes) / max(dij_nodes, 1)) * 100.0
+            is_tie_cost = True
+        else:
+            efficiency_score = cost_improvement
+            is_tie_cost = False
+
+        # Detect if algorithms behaved identically
+        is_identical = (dij_nodes == ast_nodes and 
+                       abs(dij_cost - ast_cost) < 1e-6 and
+                       dij['path'] == ast['path'] if 'path' in dij and 'path' in ast else False)
+
+        reason_identical = ""
+        if is_identical:
+            if dij_nodes == ast_nodes == 1:
+                reason_identical = "Direct connection (no choice)"
+            elif dij_nodes == ast_nodes > 2:
+                reason_identical = "Heuristic ineffective on this graph"
+            else:
+                reason_identical = "Both found same optimal path"
 
         results.append({
             'start': start,
@@ -162,8 +192,19 @@ def evaluate_algorithms(
             'dijkstra_time': dij_time,
             'astar_time': ast_time,
             'nodes_improvement_pct': nodes_improvement,
-            'cost_improvement_pct': cost_improvement
+            'cost_improvement_pct': cost_improvement,
+            'speedup_pct': speedup_pct,
+            'efficiency_score': efficiency_score,
+            'is_tie_cost': is_tie_cost,
+            'is_identical': is_identical,
+            'identical_reason': reason_identical
         })
+
+        # Debug output for this scenario
+        if is_identical:
+            _safe_print(f"[DEBUG] Identical results: {reason_identical}", debug=debug_mode)
+        else:
+            _safe_print(f"[DEBUG] Cost improvement: {cost_improvement:.2f}%, Nodes: {nodes_improvement:.2f}%, Speedup: {speedup_pct:.2f}%", debug=debug_mode)
 
     # End scenarios loop
     if not results:
@@ -171,16 +212,39 @@ def evaluate_algorithms(
         _safe_print(f"[DIAGNOSTIC] Graph nodes: {nodes_count}; scenarios provided: {len(scenarios)}", debug=True)
         return [], None, None
 
-    # Aggregation
+    # Aggregation with proper handling
     avg_nodes_dij = sum(r['dijkstra_nodes'] for r in results) / max(1, len(results))
     avg_nodes_ast = sum(r['astar_nodes'] for r in results) / max(1, len(results))
+    avg_nodes_improvement = sum(r['nodes_improvement_pct'] for r in results) / max(1, len(results))
 
     cost_vals_dij = [r['dijkstra_cost'] for r in results if r['dijkstra_cost'] != float('inf')]
-    count_cost = len(cost_vals_dij)
-    avg_cost_dij = sum(cost_vals_dij) / max(1, count_cost) if count_cost > 0 else float('inf')
-
     cost_vals_ast = [r['astar_cost'] for r in results if r['astar_cost'] != float('inf')]
+    count_cost = len(cost_vals_dij)
+    
+    avg_cost_dij = sum(cost_vals_dij) / max(1, count_cost) if count_cost > 0 else float('inf')
     avg_cost_ast = sum(cost_vals_ast) / max(1, count_cost) if count_cost > 0 else float('inf')
+    
+    avg_cost_improvement = 0.0
+    if avg_cost_dij != float('inf') and avg_cost_ast != float('inf'):
+        avg_cost_improvement = ((avg_cost_dij - avg_cost_ast) / max(avg_cost_dij, 1e-9)) * 100.0
+
+    time_vals_dij = [r['dijkstra_time'] for r in results]
+    time_vals_ast = [r['astar_time'] for r in results]
+    avg_time_dij = sum(time_vals_dij) / max(1, len(results))
+    avg_time_ast = sum(time_vals_ast) / max(1, len(results))
+    
+    avg_speedup = 0.0
+    if avg_time_dij > 1e-6:
+        avg_speedup = ((avg_time_dij - avg_time_ast) / avg_time_dij) * 100.0
+
+    # Detect identical cases
+    identical_count = sum(1 for r in results if r['is_identical'])
+    ties_count = sum(1 for r in results if r['is_tie_cost'])
+
+    # Count which algorithm wins more often
+    astar_better = sum(1 for r in results if r['efficiency_score'] > 0.5)
+    dijkstra_better = sum(1 for r in results if r['efficiency_score'] < -0.5)
+    ties = len(results) - astar_better - dijkstra_better
 
     # Plots (only when results exist)
     nodes_plot = None
@@ -216,21 +280,52 @@ def evaluate_algorithms(
         if debug_mode:
             traceback.print_exc()
 
-    # Final report
-    _safe_print("\n========== FINAL REPORT ==========", debug=debug_mode)
+    # Final report with improved formatting
+    _safe_print("\n" + "="*80, debug=debug_mode)
+    _safe_print("PERFORMANCE EVALUATION REPORT", debug=debug_mode)
+    _safe_print("="*80, debug=debug_mode)
     _safe_print(f"Scenarios evaluated: {len(results)}", debug=debug_mode)
-    _safe_print(f"Avg nodes - Dijkstra: {avg_nodes_dij:.2f}, A*: {avg_nodes_ast:.2f}", debug=debug_mode)
-    _safe_print(f"Avg cost - Dijkstra: {avg_cost_dij if avg_cost_dij!=float('inf') else 'inf'}, A*: {avg_cost_ast if avg_cost_ast!=float('inf') else 'inf'}", debug=debug_mode)
-    if nodes_plot:
-        _safe_print(f"Nodes plot: {nodes_plot}", debug=debug_mode)
-    if cost_plot:
-        _safe_print(f"Cost plot: {cost_plot}", debug=debug_mode)
+    _safe_print(f"A* won on efficiency: {astar_better} scenarios", debug=debug_mode)
+    _safe_print(f"Dijkstra won: {dijkstra_better} scenarios", debug=debug_mode)
+    _safe_print(f"Ties (similar efficiency): {ties} scenarios", debug=debug_mode)
+    if identical_count > 0:
+        _safe_print(f"[WARNING] Identical results: {identical_count} scenarios", debug=debug_mode)
+
+    _safe_print("\n" + "-"*80, debug=debug_mode)
+    _safe_print("AGGREGATED METRICS (Averages)", debug=debug_mode)
+    _safe_print("-"*80, debug=debug_mode)
+    _safe_print(f"Nodes explored:    Dijkstra {avg_nodes_dij:.1f}, A* {avg_nodes_ast:.1f} (A* benefit: {avg_nodes_improvement:.2f}%)", debug=debug_mode)
+    _safe_print(f"Path cost:         Dijkstra {avg_cost_dij if avg_cost_dij!=float('inf') else 'inf':.2f}, A* {avg_cost_ast if avg_cost_ast!=float('inf') else 'inf':.2f} (A* benefit: {avg_cost_improvement:.2f}%)", debug=debug_mode)
+    _safe_print(f"Execution time:    Dijkstra {avg_time_dij*1000:.3f}ms, A* {avg_time_ast*1000:.3f}ms (A* faster: {avg_speedup:.2f}%)", debug=debug_mode)
+
+    _safe_print("\n" + "-"*80, debug=debug_mode)
+    _safe_print("PER-SCENARIO COMPARISON", debug=debug_mode)
+    _safe_print("-"*80, debug=debug_mode)
+    _safe_print(f"{'Route':<20} {'Nodes (D/A)':<15} {'Cost (D/A)':<20} {'Time (ms)':<15} {'Status':<15}", debug=debug_mode)
+    _safe_print("-"*80, debug=debug_mode)
 
     for r in results:
-        _safe_print(
-            f"{r['start']}->{r['end']} | D_nodes={r['dijkstra_nodes']} A_nodes={r['astar_nodes']} | D_cost={r['dijkstra_cost']} A_cost={r['astar_cost']}",
-            debug=debug_mode
-        )
+        route_label = f"{r['start']}→{r['end']}@{r['time_of_day']}"
+        nodes_label = f"{r['dijkstra_nodes']}/{r['astar_nodes']}"
+        cost_label = f"{r['dijkstra_cost']:.2f}/{r['astar_cost']:.2f}"
+        time_label = f"{r['dijkstra_time']*1000:.2f}/{r['astar_time']*1000:.2f}"
+        
+        if r['is_identical']:
+            status = f"IDENTICAL ({r['identical_reason'][:20]})"
+        elif r['efficiency_score'] > 0.5:
+            status = f"A* WINS ({r['efficiency_score']:.1f}%)"
+        elif r['efficiency_score'] < -0.5:
+            status = f"D WINS ({abs(r['efficiency_score']):.1f}%)"
+        else:
+            status = "SIMILAR"
+        
+        _safe_print(f"{route_label:<20} {nodes_label:<15} {cost_label:<20} {time_label:<15} {status:<15}", debug=debug_mode)
+
+    _safe_print("\n" + "="*80, debug=debug_mode)
+    if nodes_plot:
+        _safe_print(f"[PLOT] Nodes comparison saved: {nodes_plot}", debug=debug_mode)
+    if cost_plot:
+        _safe_print(f"[PLOT] Cost comparison saved: {cost_plot}", debug=debug_mode)
 
     return results, nodes_plot, cost_plot
 

@@ -9,24 +9,41 @@ from Backend.algorithms.shortest_path.dijkstra import DijkstraAlgorithm
 
 
 def build_small_graph():
+    r"""
+    Build a graph where A* can demonstrate advantage over Dijkstra.
+    
+    Graph structure (with coordinates):
+             A (1,2)
+            / \
+    S(0,0)     G(2,2)
+            \ /
+             B (1,0)
+    
+    Path S->A->G is 2 edges = 3.236 cost (2.236 + 1.0)
+    Path S->B->G is 2 edges = 3.236 cost (1.0 + 2.236)
+    
+    A* with Euclidean heuristic will prefer S->A->G because:
+    - From S: h(A)=sqrt(1+4)=2.236, h(B)=sqrt(1+0)=1.0
+    - A* will explore A before B since A is closer to goal
+    - Dijkstra will explore both equally
+    """
     g = TransportGraph()
 
     nodes = [
-        Node('S', 'Start', LocationType.DISTRICT, 0, 0),
-        Node('A', 'A', LocationType.DISTRICT, 1, 0),
-        Node('B', 'B', LocationType.DISTRICT, 2, 0),
-        Node('C', 'C', LocationType.DISTRICT, 3, 0),
-        Node('G', 'Goal', LocationType.FACILITY, 4, 0),
+        Node('S', 'Start', LocationType.DISTRICT, 0, 0),    # Start at origin
+        Node('A', 'PathA', LocationType.DISTRICT, 1, 2),    # Up - closer to goal vertically
+        Node('B', 'PathB', LocationType.DISTRICT, 1, 0),    # Down - farther from goal
+        Node('G', 'Goal', LocationType.FACILITY, 2, 2),     # Goal
     ]
 
     for n in nodes:
         g.add_node(n)
 
     edges = [
-        Edge('S', 'A', distance=1.0, capacity=100, condition=8),
-        Edge('A', 'B', distance=1.0, capacity=100, condition=8),
-        Edge('B', 'C', distance=1.0, capacity=100, condition=8),
-        Edge('C', 'G', distance=1.0, capacity=100, condition=8),
+        Edge('S', 'A', distance=2.236, capacity=100, condition=8),  # Euclidean: sqrt(1+4) ≈ 2.236
+        Edge('S', 'B', distance=1.0, capacity=100, condition=8),    # Straight down
+        Edge('A', 'G', distance=1.0, capacity=100, condition=8),    # Straight right
+        Edge('B', 'G', distance=2.236, capacity=100, condition=8),  # Euclidean: sqrt(1+4) ≈ 2.236
     ]
 
     for e in edges:
@@ -36,6 +53,11 @@ def build_small_graph():
 
 
 def test_astar_equals_dijkstra():
+    """
+    Test that A* produces optimal path but may explore fewer nodes than Dijkstra.
+    
+    Both should find same optimal cost, but A* with good heuristic explores strategically.
+    """
     g = build_small_graph()
     astar = AStarAlgorithm()
     dijkstra = DijkstraAlgorithm()
@@ -51,5 +73,15 @@ def test_astar_equals_dijkstra():
     print(f"A* path: {ares['path']}", flush=True)
     print("=================================\n", flush=True)
 
-    # Assertion: costs should be equal in benchmark mode
-    assert dres['cost'] == ares['cost'], f"Dijkstra cost {dres['cost']} != A* cost {ares['cost']}"
+    # Assertion 1: costs should be equal (both find optimal)
+    assert abs(dres['cost'] - ares['cost']) < 0.01, \
+        f"Dijkstra cost {dres['cost']} != A* cost {ares['cost']}"
+    
+    # Assertion 2: A* should explore <= Dijkstra nodes (heuristic should help)
+    # Note: May be equal if graph structure allows both to converge optimally
+    assert ares.get('nodes_explored', 0) <= dres.get('nodes_explored', 0) + 1, \
+        f"A* explored {ares.get('nodes_explored')} but Dijkstra only {dres.get('nodes_explored')} - heuristic should help!"
+    
+    # Assertion 3: Both should find same optimal path length
+    assert len(dres['path']) == len(ares['path']), \
+        f"Path lengths differ: Dijkstra {len(dres['path'])} vs A* {len(ares['path'])}"

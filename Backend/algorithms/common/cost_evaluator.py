@@ -58,21 +58,36 @@ class CostEvaluator:
         if not is_emergency:
             return 1.0
 
+        # Start with base emergency multiplier (applies globally to all edges)
+        # This ensures emergency vehicles get speed boost everywhere, not just at intersections
+        base_emergency_mult = kwargs.get("base_emergency_multiplier", 0.8)  # 20% faster by default
+        current_mult = self._clamp_multiplier(base_emergency_mult)
+
+        # Additional intersection priority multiplier at intersections
         ip = kwargs.get("intersection_priority") or self.intersection_priority
-        if ip is not None:
-            if self.is_intersection(graph, current_node):
-                return self._clamp_multiplier(ip.get_multiplier(current_node, True))
-            return 1.0
+        if ip is not None and self.is_intersection(graph, current_node):
+            # Apply intersection-specific discount on top of base emergency multiplier
+            intersection_mult = self._clamp_multiplier(ip.get_multiplier(current_node, True))
+            # Combine: both apply their discounts
+            # e.g., base=0.8, intersection=0.6 → 0.8 * 0.6 = 0.48 at intersections
+            current_mult = current_mult * intersection_mult
+            return current_mult
 
-        # Backward-compatible fallback knobs
+        # Backward-compatible: if explicit emergency_priority_intersection is provided,
+        # use it ONLY at intersections as an additional multiplier
         emergency_priority_intersection = kwargs.get("emergency_priority_intersection", None)
-        if emergency_priority_intersection is not None:
-            if self.is_intersection(graph, current_node):
-                return self._clamp_multiplier(emergency_priority_intersection)
-            return 1.0
+        if emergency_priority_intersection is not None and self.is_intersection(graph, current_node):
+            intersection_mult = self._clamp_multiplier(emergency_priority_intersection)
+            return current_mult * intersection_mult
 
-        emergency_priority = kwargs.get("emergency_priority", 1.0)
-        return self._clamp_multiplier(emergency_priority)
+        # Backward-compatible: emergency_priority as fallback base multiplier
+        # (only used if base_emergency_multiplier not provided)
+        if "base_emergency_multiplier" not in kwargs:
+            emergency_priority = kwargs.get("emergency_priority", None)
+            if emergency_priority is not None:
+                current_mult = self._clamp_multiplier(emergency_priority)
+
+        return current_mult
 
     def should_apply_emergency(self, kwargs) -> bool:
         mode = kwargs.get("mode", "realistic")
@@ -100,18 +115,32 @@ class CostEvaluator:
         if not self.should_apply_emergency(kwargs):
             return 1.0
 
+        # Explicit minimum multiplier takes priority
         explicit = kwargs.get("min_priority_multiplier", None)
         if explicit is not None:
             return self._clamp_multiplier(explicit)
 
+        # Start with base emergency multiplier (applies globally)
+        base_mult = kwargs.get("base_emergency_multiplier", None)
+        if base_mult is not None:
+            min_mult = self._clamp_multiplier(base_mult)
+        else:
+            # Fallback: check emergency_priority for backward compatibility
+            min_mult = self._clamp_multiplier(kwargs.get("emergency_priority", 1.0))
+
+        # Additional discount at intersections (if provided)
         ip = kwargs.get("intersection_priority") or self.intersection_priority
         if ip is not None:
             values = [ip.default_emergency_multiplier] + list(ip.overrides.values())
             if values:
-                return min(self._clamp_multiplier(v) for v in values)
-            return 1.0
+                min_intersection_mult = min(self._clamp_multiplier(v) for v in values)
+                # Combine: both apply (base * intersection)
+                return min_mult * min_intersection_mult
 
-        if kwargs.get("emergency_priority_intersection", None) is not None:
-            return self._clamp_multiplier(kwargs.get("emergency_priority_intersection"))
+        # Backward-compat: intersection-specific multiplier only
+        emergency_priority_intersection = kwargs.get("emergency_priority_intersection", None)
+        if emergency_priority_intersection is not None:
+            intersection_mult = self._clamp_multiplier(emergency_priority_intersection)
+            return min_mult * intersection_mult
 
-        return self._clamp_multiplier(kwargs.get("emergency_priority", 1.0))
+        return min_mult

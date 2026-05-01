@@ -93,6 +93,10 @@ class AStarAlgorithm(BaseShortestPath):
                 d = math.hypot(x2 - x1, y2 - y1)
                 min_d = min(min_d, d)
 
+            # ✅ FIX: If no goals found (shouldn't happen but just in case), return 0
+            if min_d == float('inf'):
+                return 0.0
+            
             # Scale heuristic by heuristic_scale to keep it admissible if some edges are reduced
             return min_d * heuristic_scale
 
@@ -127,6 +131,9 @@ class AStarAlgorithm(BaseShortestPath):
 
         if debug:
             print(f"[A* DEBUG] Starting A* search: start={start}, goals={list(goal_positions.keys())}", flush=True)
+            print(f"[A* DEBUG] Heuristic scale factor: {heuristic_scale:.3f} (min_priority={min_priority:.3f})", flush=True)
+            print(f"[A* DEBUG] Goal positions: {goal_positions}", flush=True)
+            print(f"[A* DEBUG] Start heuristic value: {heuristic(start):.3f}", flush=True)
 
         # =========================
         # A* LOOP (with dynamic time tracking)
@@ -145,8 +152,15 @@ class AStarAlgorithm(BaseShortestPath):
             accumulated_time = initial_t + g_score[current]
             current_period = self.cost_evaluator.map_time_to_period(accumulated_time)
             
+            # ✅ DEBUG: Show g, h, f values for this node
+            current_g = g_score[current]
+            current_h = heuristic(current)
+            current_f = f_score[current]
             if debug:
-                print(f"[TIME DEBUG] node={current} | accumulated_time={accumulated_time:.2f} → period={current_period.value}", flush=True)
+                print(f"[A* EXPANDING] node={current} | g={current_g:.3f} | h={current_h:.3f} | f={current_f:.3f} | time={accumulated_time:.2f} ({current_period.value})", flush=True)
+            
+            if debug:
+                print(f"[TIME DEBUG] node={current} | accumulated_time={accumulated_time:.2f} -> period={current_period.value}", flush=True)
 
             if current in goals:
                 reached_goal = current
@@ -166,8 +180,13 @@ class AStarAlgorithm(BaseShortestPath):
                 if tentative_g < g_score.get(neighbor, float('inf')):
                     came_from[neighbor] = current
                     g_score[neighbor] = tentative_g
-                    f_score[neighbor] = tentative_g + heuristic(neighbor)
+                    neighbor_h = heuristic(neighbor)
+                    f_score[neighbor] = tentative_g + neighbor_h
                     heapq.heappush(open_heap, (f_score[neighbor], neighbor))
+                    
+                    # ✅ DEBUG: Show why this neighbor was added
+                    if debug:
+                        print(f"[A* ADD-NEIGHBOR] from {current} -> {neighbor} | edge_cost={edge_weight(edge, current, arrival_time):.3f} | g={tentative_g:.3f} | h={neighbor_h:.3f} | f={f_score[neighbor]:.3f}", flush=True)
 
         # =========================
         # NO PATH

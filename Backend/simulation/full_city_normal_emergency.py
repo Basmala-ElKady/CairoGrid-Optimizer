@@ -128,35 +128,79 @@ def run_full_city(base_path: str, sample_limit: int = 200, time_of_day: float = 
     # =========================
     for s in start_nodes:
         try:
-            res_non = service.astar.run(
-                graph,
+            # ============================================
+            # EMERGENCY ROUTING (through proper pipeline)
+            # ============================================
+            # Use the full EmergencyService pipeline to ensure:
+            # 1. Hospital selection is optimized for emergency
+            # 2. IntersectionPriority is properly injected
+            # 3. Emergency multiplier is applied consistently
+            res_em = service.get_nearest_hospital_route(
                 start_node=s,
-                goal_nodes=med_ids,
-                initial_time=time_of_day
-            )
-
-            res_em = service.astar.run(
-                graph,
-                start_node=s,
-                goal_nodes=med_ids,
-                initial_time=time_of_day,
+                current_time=time_of_day,
                 is_emergency=True
             )
 
+            # If emergency route failed, skip this node
+            if not res_em.get('path'):
+                print(f"[DEBUG] Node {s}: Emergency route failed - no path found")
+                continue
+
+            # Extract the hospital that was selected by emergency routing
+            target_hospital = res_em['metadata'].get('hospital_id')
+            if not target_hospital:
+                print(f"[DEBUG] Node {s}: Emergency route missing hospital_id in metadata")
+                continue
+
+            # ============================================
+            # NORMAL ROUTING (same hospital, no emergency)
+            # ============================================
+            # For fair comparison, run normal routing to the SAME hospital
+            # that emergency routing selected. This ensures we're comparing
+            # the same problem, just with/without emergency optimization.
+            res_non = service.astar.run(
+                graph,
+                start_node=s,
+                end_node=target_hospital,
+                initial_time=time_of_day,
+                is_emergency=False
+            )
+
+            # If normal route failed, skip (shouldn't happen if emergency succeeded)
+            if not res_non.get('path'):
+                print(f"[DEBUG] Node {s}: Normal route to {target_hospital} failed - no path found")
+                continue
+
         except Exception as e:
             print(f"[ERROR] node {s}: {e}")
+            import traceback
+            traceback.print_exc()
             continue
 
+        # ============================================
+        # CALCULATE AND REPORT RESULTS
+        # ============================================
         non_cost = res_non.get('cost', float('inf'))
         em_cost = res_em.get('cost', float('inf'))
 
         reduction = None if non_cost == float('inf') else non_cost - em_cost
 
-        print(f"Node: {s}")
-        print(f"  Normal cost: {non_cost}")
-        print(f"  Emergency cost: {em_cost}")
-        print(f"  Reduction: {reduction}")
-        print("-" * 40)
+        # Debug output if costs are equal (should not happen)
+        if reduction is not None and abs(reduction) < 0.001:
+            print(f"[WARN] Node: {s} - NO COST REDUCTION DETECTED")
+            print(f"  Normal cost: {non_cost}")
+            print(f"  Emergency cost: {em_cost}")
+            print(f"  Normal path: {res_non.get('path')}")
+            print(f"  Emergency path: {res_em.get('path')}")
+            print(f"  Target hospital: {target_hospital}")
+            print("-" * 40)
+        else:
+            print(f"Node: {s}")
+            print(f"  Normal cost: {non_cost}")
+            print(f"  Emergency cost: {em_cost}")
+            print(f"  Reduction: {reduction}")
+            print(f"  Target hospital: {target_hospital}")
+            print("-" * 40)
 
         results.append(reduction)
 
