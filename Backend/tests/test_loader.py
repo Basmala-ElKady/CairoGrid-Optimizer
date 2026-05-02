@@ -1,11 +1,13 @@
 import sys
 import os
+from pathlib import Path
 
-# Ensure the project root is in the system path for imports
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Add project root to sys.path
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
 
-from utils.data_loader import DataLoader
-from models.enums import LocationType, TimePeriod
+from Backend.utils.data_loader import DataLoader
+from Backend.models.enums import LocationType, TimePeriod
 
 def run_loader_test():
     """

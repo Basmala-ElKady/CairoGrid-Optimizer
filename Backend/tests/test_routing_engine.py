@@ -1,4 +1,11 @@
+import sys
+from pathlib import Path
 import unittest
+
+# Add project root to sys.path
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
 from Backend.services.route_service import RouteService
 from Backend.services.emergency_service import EmergencyService
 from Backend.graph.graph_builder import GraphBuilder

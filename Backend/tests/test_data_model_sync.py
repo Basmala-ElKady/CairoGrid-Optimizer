@@ -1,13 +1,15 @@
 import sys
 import os
 import pandas as pd
+from pathlib import Path
 
 # Add the project root to sys.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
 
-from models.node import Node
-from models.edge import Edge
-from models.enums import LocationType
+from Backend.models.node import Node
+from Backend.models.edge import Edge
+from Backend.models.enums import LocationType
 
 def test_data_with_models():
     print("🔗 Running Integration Test: Data + Models (Professional Sync Check)...")

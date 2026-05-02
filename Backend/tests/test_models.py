@@ -1,12 +1,14 @@
 import sys
 import os
+from pathlib import Path
 
-# Add the project root to sys.path to handle imports
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Add project root to sys.path
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
 
-from models.node import Node
-from models.edge import Edge
-from models.enums import LocationType, TimePeriod
+from Backend.models.node import Node
+from Backend.models.edge import Edge
+from Backend.models.enums import LocationType, TimePeriod
 
 def test_system_backbone():
     print("🧪 Running Unit Tests for Models...\n")

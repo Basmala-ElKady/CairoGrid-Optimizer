@@ -1,4 +1,11 @@
+import sys
+from pathlib import Path
 import pytest
+
+# Add project root to sys.path
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
 from Backend.algorithms.dp.scheduling import SchedulingDP
 
 
@@ -205,3 +212,16 @@ def test_output_structure():
     assert "total_passengers_covered" in result["metadata"]
     assert "trips_selected" in result["metadata"]
     assert "dp_table_size" in result["metadata"]
+
+if __name__ == "__main__":
+    test_empty_input()
+    test_non_overlapping_trips_all_selected()
+    test_overlapping_trips_optimal_selection()
+    test_single_high_value_vs_many_low()
+    test_many_small_beat_one_big()
+    test_capacity_constraint()
+    test_legacy_time_format()
+    test_time_ordering()
+    test_dp_prevents_time_conflict()
+    test_output_structure()
+    print("✅ All scheduling DP tests PASSED")

@@ -1,4 +1,11 @@
+import sys
+from pathlib import Path
 import pytest
+
+# Add project root to sys.path
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
 from Backend.algorithms.dp.resource_allocation import ResourceAllocationDP
 
 
@@ -123,3 +130,15 @@ def test_capacity_respected():
     result = algo.execute_with_metrics(data, capacity=5)[0]
 
     assert len(result["schedule"]) <= len(data)
+
+if __name__ == "__main__":
+    test_zero_capacity()
+    test_single_item_fit()
+    test_optimal_selection()
+    test_output_format()
+    test_schedule_structure()
+    test_capacity_smaller_than_all()
+    test_empty_data()
+    test_tie_case_consistency()
+    test_capacity_respected()
+    print("✅ All resource allocation DP tests PASSED")

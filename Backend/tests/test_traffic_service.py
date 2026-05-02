@@ -1,12 +1,17 @@
 import sys
 import os
+from pathlib import Path
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Add project root and Backend directory to sys.path
+project_root = Path(__file__).parent.parent.parent
+backend_root = project_root / "Backend"
+sys.path.insert(0, str(project_root))
+sys.path.insert(0, str(backend_root))
 
-from services.traffic_service import TrafficService
-from utils.data_loader import DataLoader
-from graph.graph_builder import GraphBuilder
-from models.enums import TimePeriod, LocationType
+from Backend.services.traffic_service import TrafficService
+from Backend.utils.data_loader import DataLoader
+from Backend.graph.graph_builder import GraphBuilder
+from Backend.models.enums import TimePeriod, LocationType
 
 
 def test_traffic_service():

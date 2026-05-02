@@ -1,4 +1,10 @@
+import sys
+from pathlib import Path
 import pytest
+
+# Add project root to sys.path
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
 
 from Backend.graph.transport_graph import TransportGraph
 from Backend.models.node import Node
@@ -84,3 +90,7 @@ def test_astar_equals_dijkstra():
     # Assertion 3: Both should find same optimal path length
     assert len(dres['path']) == len(ares['path']), \
         f"Path lengths differ: Dijkstra {len(dres['path'])} vs A* {len(ares['path'])}"
+
+if __name__ == "__main__":
+    test_astar_equals_dijkstra()
+    print("✅ test_astar_equals_dijkstra PASSED")

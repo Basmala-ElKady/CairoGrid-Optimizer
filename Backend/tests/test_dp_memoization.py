@@ -1,4 +1,11 @@
+import sys
+from pathlib import Path
 import pytest
+
+# Add project root to sys.path
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
 from Backend.algorithms.dp.scheduling import SchedulingDP
 
 
@@ -30,3 +37,8 @@ def test_memoization_performance():
     result2, time2 = algo.execute_with_metrics(data, capacity=None)
 
     assert time2 <= time1 * 1.5
+
+if __name__ == "__main__":
+    test_memoization_consistency()
+    test_memoization_performance()
+    print("✅ All DP memoization tests PASSED")

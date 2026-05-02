@@ -1,4 +1,11 @@
 import csv
+import sys
+import os
+from pathlib import Path
+
+# Add project root to sys.path
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
 
 from Backend.graph.transport_graph import TransportGraph
 from Backend.models.node import Node
@@ -49,3 +56,10 @@ def test_emergency_routing_nearest(tmp_path):
     assert result['path'][-1] == 'F9'
     assert result['metadata'].get('hospital_id') == 'F9'
     assert result['metadata'].get('hospital_name') == 'Qasr El Aini Hospital'
+
+if __name__ == "__main__":
+    import tempfile
+    from pathlib import Path
+    with tempfile.TemporaryDirectory() as tmpdir:
+        test_emergency_routing_nearest(Path(tmpdir))
+    print("✅ test_emergency_routing_nearest PASSED")
