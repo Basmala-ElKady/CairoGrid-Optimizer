@@ -1,7 +1,7 @@
 from typing import Dict, List, Optional
 
-from models.node import Node
-from models.edge import Edge
+from Backend.models.node import Node
+from Backend.models.edge import Edge
 
 
 class TransportGraph:
