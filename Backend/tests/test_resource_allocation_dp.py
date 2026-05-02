@@ -1,3 +1,10 @@
+from pathlib import Path
+import sys
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 import pytest
 from Backend.algorithms.dp.resource_allocation import ResourceAllocationDP
 
@@ -123,3 +130,6 @@ def test_capacity_respected():
     result = algo.execute_with_metrics(data, capacity=5)[0]
 
     assert len(result["schedule"]) <= len(data)
+if __name__ == "__main__":
+    import pytest
+    sys.exit(pytest.main([__file__, "-v", "-s"]))

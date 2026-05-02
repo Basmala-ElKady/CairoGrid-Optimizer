@@ -1,3 +1,10 @@
+from pathlib import Path
+import sys
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 import pytest
 from Backend.algorithms.dp.scheduling import SchedulingDP
 
@@ -28,3 +35,6 @@ def test_memoization_performance():
     result2, time2 = algo.execute_with_metrics(data, capacity=None)
 
     assert time2 <= time1 * 1.5
+if __name__ == "__main__":
+    import pytest
+    sys.exit(pytest.main([__file__, "-v", "-s"]))

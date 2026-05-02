@@ -1,3 +1,10 @@
+from pathlib import Path
+import sys
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from Backend.graph.transport_graph import TransportGraph
 from Backend.models.node import Node
 from Backend.models.edge import Edge
@@ -177,3 +184,6 @@ def test_intersection_priority_effect():
 
     assert res_em['cost'] <= res_norm['cost'], \
         f"Emergency cost {res_em['cost']} should be <= normal cost {res_norm['cost']}"
+if __name__ == "__main__":
+    import pytest
+    sys.exit(pytest.main([__file__, "-v", "-s"]))

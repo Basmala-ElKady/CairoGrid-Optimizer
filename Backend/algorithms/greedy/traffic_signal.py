@@ -1,5 +1,5 @@
-from algorithms.common.base_algorithm import BaseAlgorithm
-from models.enums import TimePeriod
+from Backend.algorithms.common.base_algorithm import BaseAlgorithm
+from Backend.models.enums import TimePeriod
 
 class TrafficSignalOptimizer(BaseAlgorithm):
     def __init__(self):

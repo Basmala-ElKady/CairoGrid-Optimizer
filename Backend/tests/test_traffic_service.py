@@ -1,12 +1,19 @@
+from pathlib import Path
+import sys
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 import sys
 import os
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from services.traffic_service import TrafficService
-from utils.data_loader import DataLoader
-from graph.graph_builder import GraphBuilder
-from models.enums import TimePeriod, LocationType
+
+from Backend.services.traffic_service import TrafficService
+from Backend.utils.data_loader import DataLoader
+from Backend.graph.graph_builder import GraphBuilder
+from Backend.models.enums import TimePeriod, LocationType
 
 
 def test_traffic_service():

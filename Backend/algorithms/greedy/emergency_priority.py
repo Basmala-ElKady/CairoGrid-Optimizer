@@ -1,4 +1,4 @@
-from algorithms.common.base_algorithm import BaseAlgorithm
+from Backend.algorithms.common.base_algorithm import BaseAlgorithm
 
 class EmergencyPrioritySystem(BaseAlgorithm):
     def __init__(self):
