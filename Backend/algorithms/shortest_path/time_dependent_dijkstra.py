@@ -14,7 +14,6 @@ class TimeDependentDijkstra(BaseShortestPath):
         current_time = kwargs.get("initial_time", 0)
 
         distances, previous = self._init_structures(graph, start)
-
         pq = [(0, start, current_time)]
 
         while pq:
@@ -25,7 +24,6 @@ class TimeDependentDijkstra(BaseShortestPath):
 
             for edge in graph.get_neighbors(current_node):
                 neighbor = edge.target_id
-
                 period = self._map_time_to_period(arrival_time)
                 weight = edge.get_weight(period)
 
@@ -37,8 +35,15 @@ class TimeDependentDijkstra(BaseShortestPath):
                     previous[neighbor] = current_node
                     heapq.heappush(pq, (new_dist, neighbor, new_time))
 
-        path = self._reconstruct_path(previous, start, end)
+       
+        if distances.get(end, float('inf')) == float('inf'):
+            return {
+                "path": [],
+                "cost": float('inf'),
+                "metadata": {"mode": "fastest"}
+            }
 
+        path = self._reconstruct_path(previous, start, end)
         return {
             "path": path,
             "cost": distances[end],
@@ -46,11 +51,8 @@ class TimeDependentDijkstra(BaseShortestPath):
         }
 
     def _map_time_to_period(self, time_value):
-        if 6 <= time_value < 10:
-            return TimePeriod.MORNING_PEAK
-        elif 10 <= time_value < 16:
-            return TimePeriod.AFTERNOON
-        elif 16 <= time_value < 20:
-            return TimePeriod.EVENING_PEAK
-        else:
-            return TimePeriod.NIGHT
+        time_value = time_value % 24
+        if 6 <= time_value < 10: return TimePeriod.MORNING_PEAK
+        elif 10 <= time_value < 16: return TimePeriod.AFTERNOON
+        elif 16 <= time_value < 20: return TimePeriod.EVENING_PEAK
+        else: return TimePeriod.NIGHT

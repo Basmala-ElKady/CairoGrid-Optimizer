@@ -1,10 +1,10 @@
 from typing import List
-
 from Backend.models.node import Node
 from Backend.models.edge import Edge
-from .transport_graph import TransportGraph
+from Backend.graph.transport_graph import TransportGraph
 
 class GraphBuilder:
+    
     @staticmethod
     def build_graph(nodes: List[Node], edges: List[Edge]) -> TransportGraph:
         """

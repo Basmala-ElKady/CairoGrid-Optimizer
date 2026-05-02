@@ -2,7 +2,7 @@ import heapq
 from Backend.algorithms.common.base_shortest_path import BaseShortestPath
 from Backend.algorithms.common.cost_evaluator import CostEvaluator
 
-class DijkstraAlgorithm(BaseShortestPath):
+class Dijkstra(BaseShortestPath):
     def __init__(self):
         super().__init__("Dijkstra")
         self.metadata["time_complexity"] = "O(E log V)"
@@ -19,8 +19,6 @@ class DijkstraAlgorithm(BaseShortestPath):
 
         while pq:
             current_dist, current_node = heapq.heappop(pq)
-
-            # Count unique node extractions (approx nodes explored)
             nodes_explored += 1
 
             if current_node == end:
@@ -29,13 +27,8 @@ class DijkstraAlgorithm(BaseShortestPath):
             for edge in graph.get_neighbors(current_node):
                 neighbor = edge.target_id
                 weight = self.cost_evaluator.edge_weight(
-                    graph,
-                    edge,
-                    str(current_node),
-                    current_dist,
-                    **kwargs
+                    graph, edge, str(current_node), current_dist, **kwargs
                 )
-
                 new_dist = current_dist + weight
 
                 if new_dist < distances[neighbor]:
@@ -43,8 +36,15 @@ class DijkstraAlgorithm(BaseShortestPath):
                     previous[neighbor] = current_node
                     heapq.heappush(pq, (new_dist, neighbor))
 
-        path = self._reconstruct_path(previous, start, end)
+        if distances.get(end, float('inf')) == float('inf'):
+            return {
+                "path": [],
+                "cost": float('inf'),
+                "nodes_explored": nodes_explored,
+                "metadata": {"mode": "shortest"}
+            }
 
+        path = self._reconstruct_path(previous, start, end)
         return {
             "path": path,
             "cost": distances[end],

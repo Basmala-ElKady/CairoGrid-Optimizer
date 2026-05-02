@@ -1,5 +1,4 @@
 from typing import Dict, List, Optional
-
 from Backend.models.node import Node
 from Backend.models.edge import Edge
 
@@ -31,6 +30,12 @@ class TransportGraph:
         if target_id not in self.adjacency_list:
             self.adjacency_list[target_id] = []
             
+        # Ensure IDs are present in nodes dict to prevent KeyErrors in algorithms
+        if source_id not in self.nodes:
+            self.nodes[source_id] = None # Placeholder if Node object not provided
+        if target_id not in self.nodes:
+            self.nodes[target_id] = None
+
         self.adjacency_list[source_id].append(edge)
 
     def get_neighbors(self, node_id: str) -> List[Edge]:
