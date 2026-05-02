@@ -1,5 +1,5 @@
-from .traffic_profile import TrafficProfile
-from .enums import TimePeriod
+from Backend.models.traffic_profile import TrafficProfile
+from Backend.models.enums import TimePeriod
 
 class Edge:
     """Represents a road connection between two Nodes with dynamic weighting."""

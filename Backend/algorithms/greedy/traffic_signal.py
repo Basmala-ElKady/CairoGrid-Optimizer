@@ -5,7 +5,8 @@ class TrafficSignalOptimizer(BaseAlgorithm):
     def __init__(self):
         super().__init__("Greedy Signal Optimization")
         
-    def run(self, graph, **kwargs):
+    def run(self, *args, **kwargs):
+        graph = kwargs.pop("graph", args[0] if len(args) > 0 else None)
         """
         Greedy Logic: For any intersection, assign the longest 'Green Light' 
         duration to the road with the highest volume[cite: 1].

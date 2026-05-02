@@ -1,3 +1,4 @@
+import time
 from typing import Dict, List, Any
 from Backend.algorithms.mst.prim import PrimAlgorithm
 from Backend.models.edge import Edge
@@ -16,10 +17,14 @@ class PlanningService:
         Executes Prim's Algorithm to find minimum spanning constraints 
         for new transport expansion lines.
         """
-        result, execution_time = self.algorithm.execute_with_metrics(
+        start_time = time.perf_counter()
+
+        result = self.algorithm.run(
             edge_list=edge_list,
             nodes=nodes
         )
+
+        execution_time = (time.perf_counter() - start_time) * 1000
         
         return {
             "result": result,

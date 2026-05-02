@@ -8,13 +8,13 @@ class TransitService:
         self.allocator = ResourceAllocationDP()
 
     def optimize(self, schedule_data, resource_data, capacity):
-        allocation_result = self.allocator.execute_with_metrics(
+        allocation_result = self.allocator.run(
             resource_data, capacity=capacity
-        )[0]
+        )
 
-        scheduling_result = self.scheduler.execute_with_metrics(
+        scheduling_result = self.scheduler.run(
             schedule_data, capacity=capacity
-        )[0]
+        )
 
         combined_schedule = {}
 

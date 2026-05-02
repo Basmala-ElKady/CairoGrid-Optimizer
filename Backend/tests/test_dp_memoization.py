@@ -5,6 +5,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+import time
 import pytest
 from Backend.algorithms.dp.scheduling import SchedulingDP
 
@@ -17,8 +18,8 @@ def test_memoization_consistency():
         {"bus_id": "B1", "time": "06:15", "passengers": 120},
     ]
 
-    result1 = algo.execute_with_metrics(data, capacity=None)[0]
-    result2 = algo.execute_with_metrics(data, capacity=None)[0]
+    result1 = algo.run(data, capacity=None)
+    result2 = algo.run(data, capacity=None)
 
     assert result1 == result2
 
@@ -31,8 +32,13 @@ def test_memoization_performance():
         {"bus_id": "B1", "time": "06:15", "passengers": 120},
     ]
 
-    result1, time1 = algo.execute_with_metrics(data, capacity=None)
-    result2, time2 = algo.execute_with_metrics(data, capacity=None)
+    t0 = time.perf_counter()
+    result1 = algo.run(data, capacity=None)
+    time1 = time.perf_counter() - t0
+
+    t0 = time.perf_counter()
+    result2 = algo.run(data, capacity=None)
+    time2 = time.perf_counter() - t0
 
     assert time2 <= time1 * 1.5
 if __name__ == "__main__":

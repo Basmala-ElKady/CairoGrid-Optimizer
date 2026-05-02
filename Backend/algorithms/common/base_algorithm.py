@@ -12,23 +12,13 @@ class BaseAlgorithm(ABC):
         }
 
     @abstractmethod
-    def run(self, graph=None, **kwargs) -> Any:
+    def run(self, *args, **kwargs) -> Any:
         """
         Implemented by each algorithm. 
         Example kwargs: start_node='1', end_node='F9'
         """
         raise NotImplementedError
 
-    def execute_with_metrics(self, graph=None, **kwargs) -> Tuple[Any, float]:
-        start_time = time.perf_counter()
-
-        result = self.run(graph, **kwargs)
-
-        end_time = time.perf_counter()
-        self.execution_time = (end_time - start_time) * 1000 
-
-        return result, self.execution_time
-    
     def get_complexity_report(self) -> Dict[str, str]:
         return {
             "algorithm": self.name,

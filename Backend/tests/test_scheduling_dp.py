@@ -12,7 +12,7 @@ from Backend.algorithms.dp.scheduling import SchedulingDP
 
 def test_empty_input():
     algo = SchedulingDP()
-    result = algo.execute_with_metrics([], capacity=None)[0]
+    result = algo.run([], capacity=None)
 
     assert result["schedule"] == {}
     assert result["cost"] == 0
@@ -28,7 +28,7 @@ def test_basic_schedule():
         {"bus_id": "B2", "time": "06:05", "passengers": 80},
     ]
 
-    result = algo.execute_with_metrics(data, capacity=None)[0]
+    result = algo.run(data, capacity=None)
 
     assert "schedule" in result
     assert "cost" in result
@@ -45,7 +45,7 @@ def test_time_ordering():
         {"bus_id": "B1", "time": "06:00", "passengers": 100},
     ]
 
-    result = algo.execute_with_metrics(data, capacity=None)[0]
+    result = algo.run(data, capacity=None)
 
     times = result["schedule"]["B1"]
     assert times == sorted(times)

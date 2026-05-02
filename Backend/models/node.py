@@ -1,4 +1,4 @@
-from .enums import LocationType
+from Backend.models.enums import LocationType
 
 class Node:
     def __init__(self, node_id: str, name: str, node_type: LocationType, 

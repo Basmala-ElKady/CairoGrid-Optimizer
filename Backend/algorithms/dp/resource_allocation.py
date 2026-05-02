@@ -6,7 +6,9 @@ class ResourceAllocationDP(BaseAlgorithm):
     def __init__(self):
         super().__init__("ResourceAllocationDP")
 
-    def run(self, data_list, capacity, **kwargs):
+    def run(self, *args, **kwargs):
+        data_list = kwargs.pop("data_list", args[0] if len(args) > 0 else [])
+        capacity = kwargs.pop("capacity", args[1] if len(args) > 1 else 0)
         if not data_list or capacity <= 0:
             return {
                 "schedule": {},
