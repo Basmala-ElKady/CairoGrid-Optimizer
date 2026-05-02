@@ -12,17 +12,24 @@ class BaseAlgorithm(ABC):
         }
 
     @abstractmethod
-    def run(self, graph=None, **kwargs) -> Any:
+    def run(self, data=None, **kwargs) -> Any:
         """
-        Implemented by each algorithm. 
-        Example kwargs: start_node='1', end_node='F9'
+        Implemented by each algorithm.
+
+        Parameters
+        ----------
+        data : any
+            Primary input — a TransportGraph for path/MST algorithms,
+            or a list of dicts for DP algorithms.
+        **kwargs
+            Algorithm-specific options (e.g. start_node, end_node, capacity).
         """
         raise NotImplementedError
 
-    def execute_with_metrics(self, graph=None, **kwargs) -> Tuple[Any, float]:
+    def execute_with_metrics(self, data=None, **kwargs) -> Tuple[Any, float]:
         start_time = time.perf_counter()
 
-        result = self.run(graph, **kwargs)
+        result = self.run(data, **kwargs)
 
         end_time = time.perf_counter()
         self.execution_time = (end_time - start_time) * 1000 

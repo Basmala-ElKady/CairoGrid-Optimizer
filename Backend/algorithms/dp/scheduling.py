@@ -1,3 +1,17 @@
+"""
+Weighted Interval Scheduling via Dynamic Programming — with optional
+capacity-constrained selection.
+
+When ``capacity`` is None (unlimited):
+    1D DP:  dp[i] = max(dp[i-1], value[i] + dp[p(i)+1])
+    Complexity: O(n log n) time, O(n) space.
+
+When ``capacity`` is an integer K:
+    2D DP:  dp[i][k] = max(dp[i-1][k], value[i] + dp[p(i)+1][k-1])
+    Selects the optimal non-overlapping subset of at most K trips.
+    Complexity: O(n * K * log n) time, O(n * K) space.
+"""
+
 from Backend.algorithms.common.base_algorithm import BaseAlgorithm
 import json
 
@@ -6,10 +20,12 @@ class SchedulingDP(BaseAlgorithm):
     """
     Weighted Interval Scheduling via Dynamic Programming.
 
-    dp[i] = max(dp[i-1], value[i] + dp[p(i)+1])
-    where p(i) = last trip ending before trip i starts (binary search).
+    Unconstrained recurrence:
+        dp[i] = max(dp[i-1], value[i] + dp[p(i)+1])
+        where p(i) = last trip ending before trip i starts (binary search).
 
-    Complexity: O(n log n) time, O(n) space.
+    Capacity-constrained recurrence (at most K trips):
+        dp[i][k] = max(dp[i-1][k], value[i] + dp[p(i)+1][k-1])
     """
 
     DEFAULT_TRIP_DURATION = 0.25  # 15 minutes in hours
@@ -17,11 +33,14 @@ class SchedulingDP(BaseAlgorithm):
     def __init__(self):
         super().__init__("SchedulingDP")
         self.metadata.update({
-            "time_complexity": "O(n log n)",
-            "space_complexity": "O(n)"
+            "time_complexity": "O(n log n) / O(n * K * log n)",
+            "space_complexity": "O(n) / O(n * K)"
         })
         self._memo_cache = {}
 
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
     @staticmethod
     def _parse_time(time_str):
         """Convert 'HH:MM' to decimal hours (e.g. '06:15' -> 6.25)."""
@@ -67,23 +86,88 @@ class SchedulingDP(BaseAlgorithm):
                 hi = mid - 1
         return result
 
-    def _reconstruct(self, dp, intervals, end_times):
-        """Backtrack through DP table to recover selected trips."""
+    # ------------------------------------------------------------------
+    # Unconstrained DP  —  dp[i] (1-D)
+    # ------------------------------------------------------------------
+    def _solve_unconstrained(self, intervals, end_times):
+        """Standard weighted interval scheduling (no trip-count limit)."""
+        n = len(intervals)
+        dp = [0] * (n + 1)
+
+        for i in range(1, n + 1):
+            start_i = intervals[i - 1][0]
+            value_i = intervals[i - 1][2]
+            p_i = self._find_last_compatible(end_times, i - 1, start_i)
+            dp[i] = max(dp[i - 1], value_i + dp[p_i + 1])
+
+        # Reconstruct
         selected = []
-        i = len(intervals)
+        i = n
         while i >= 1:
             start_i = intervals[i - 1][0]
             p_i = self._find_last_compatible(end_times, i - 1, start_i)
             include_val = intervals[i - 1][2] + dp[p_i + 1]
-
             if include_val > dp[i - 1]:
                 selected.append(intervals[i - 1])
                 i = p_i + 1
             else:
                 i -= 1
         selected.reverse()
-        return selected
+        return dp[n], selected, n + 1
 
+    # ------------------------------------------------------------------
+    # Capacity-constrained DP  —  dp[i][k] (2-D)
+    # ------------------------------------------------------------------
+    def _solve_constrained(self, intervals, end_times, capacity):
+        """
+        Select at most ``capacity`` non-overlapping trips maximising
+        total passenger value.
+
+        dp[i][k] = max value using first i trips, selecting at most k.
+        Recurrence:
+            dp[i][k] = max(
+                dp[i-1][k],                                    # exclude trip i
+                value[i] + dp[p(i)+1][k-1]   if k >= 1         # include trip i
+            )
+        """
+        n = len(intervals)
+        K = min(capacity, n)
+
+        # dp[i][k] — (n+1) x (K+1) table
+        dp = [[0] * (K + 1) for _ in range(n + 1)]
+
+        for i in range(1, n + 1):
+            start_i = intervals[i - 1][0]
+            value_i = intervals[i - 1][2]
+            p_i = self._find_last_compatible(end_times, i - 1, start_i)
+
+            for k in range(K + 1):
+                dp[i][k] = dp[i - 1][k]  # exclude
+                if k >= 1:
+                    include_val = value_i + dp[p_i + 1][k - 1]
+                    if include_val > dp[i][k]:
+                        dp[i][k] = include_val
+
+        # Reconstruct from dp[n][K]
+        selected = []
+        i, k = n, K
+        while i >= 1 and k >= 1:
+            if dp[i][k] != dp[i - 1][k]:
+                selected.append(intervals[i - 1])
+                start_i = intervals[i - 1][0]
+                p_i = self._find_last_compatible(end_times, i - 1, start_i)
+                i = p_i + 1
+                k -= 1
+            else:
+                i -= 1
+        selected.reverse()
+
+        table_size = (n + 1) * (K + 1)
+        return dp[n][K], selected, table_size
+
+    # ------------------------------------------------------------------
+    # Entry point
+    # ------------------------------------------------------------------
     def run(self, data_list, capacity=None, **kwargs):
         if not data_list:
             return {"schedule": {}, "cost": 0,
@@ -104,25 +188,19 @@ class SchedulingDP(BaseAlgorithm):
             return empty
 
         intervals.sort(key=lambda x: x[1])
-        n = len(intervals)
         end_times = [iv[1] for iv in intervals]
 
-        # Step 2: DP — dp[i] = max(dp[i-1], value[i] + dp[p(i)+1])
-        dp = [0] * (n + 1)
-        for i in range(1, n + 1):
-            start_i, end_i, value_i, _ = intervals[i - 1]
-            p_i = self._find_last_compatible(end_times, i - 1, start_i)
-            dp[i] = max(dp[i - 1], value_i + dp[p_i + 1])
+        # Step 2: DP — choose unconstrained or constrained solver
+        if capacity is None:
+            optimal_value, selected, dp_table_size = self._solve_unconstrained(
+                intervals, end_times
+            )
+        else:
+            optimal_value, selected, dp_table_size = self._solve_constrained(
+                intervals, end_times, capacity
+            )
 
-        # Step 3: Reconstruct optimal non-overlapping selection
-        selected = self._reconstruct(dp, intervals, end_times)
-
-        # Step 4: Apply optional capacity limit (safe — subset of non-overlapping set)
-        if capacity is not None and len(selected) > capacity:
-            selected.sort(key=lambda x: x[2], reverse=True)
-            selected = selected[:capacity]
-
-        # Step 5: Format output grouped by bus_id
+        # Step 3: Format output grouped by bus_id
         schedule = {}
         total_passengers = 0
         for start, end, value, original in selected:
@@ -141,9 +219,9 @@ class SchedulingDP(BaseAlgorithm):
             "cost": total_passengers,
             "metadata": {
                 "total_passengers_covered": total_passengers,
-                "trips_considered": n,
+                "trips_considered": len(intervals),
                 "trips_selected": len(selected),
-                "dp_table_size": n + 1
+                "dp_table_size": dp_table_size
             }
         }
 

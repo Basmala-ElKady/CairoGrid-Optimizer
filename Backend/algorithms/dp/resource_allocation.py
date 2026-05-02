@@ -1,12 +1,50 @@
+"""
+0/1 Knapsack via Dynamic Programming for bus fleet resource allocation.
+
+    dp[i][w] = max(values[i-1] + dp[i-1][w - weights[i-1]], dp[i-1][w])
+
+Items  = bus routes
+Weight = buses assigned to each route
+Value  = daily passengers served
+
+Complexity: O(n * capacity) time, O(n * capacity) space.
+"""
+
+import logging
 from Backend.algorithms.common.base_algorithm import BaseAlgorithm
+
+logger = logging.getLogger(__name__)
 
 
 class ResourceAllocationDP(BaseAlgorithm):
+    """
+    0/1 Knapsack DP for allocating a limited bus fleet across routes
+    to maximise total daily passenger coverage.
+
+    State definition:
+        dp[i][w] = maximum passengers achievable considering the first
+                   i routes with at most w buses available.
+
+    Recurrence:
+        if weight[i] <= w:
+            dp[i][w] = max(value[i] + dp[i-1][w - weight[i]], dp[i-1][w])
+        else:
+            dp[i][w] = dp[i-1][w]
+    """
 
     def __init__(self):
         super().__init__("ResourceAllocationDP")
+        self.metadata.update({
+            "time_complexity": "O(n * capacity)",
+            "space_complexity": "O(n * capacity)"
+        })
 
-    def run(self, data_list, capacity, **kwargs):
+    def run(self, data_list, capacity=None, **kwargs):
+        # Guard: capacity must be a positive integer for knapsack
+        if capacity is None:
+            capacity = 0
+        capacity = int(capacity)
+
         if not data_list or capacity <= 0:
             return {
                 "schedule": {},
@@ -16,14 +54,26 @@ class ResourceAllocationDP(BaseAlgorithm):
 
         n = len(data_list)
 
-        weights = [max(1, item.get("buses", 0)) for item in data_list]
-        values = [item.get("passengers", 0) for item in data_list]
+        # Extract weights and values with validation
+        weights = []
+        values = []
+        for item in data_list:
+            buses = item.get("buses", 0)
+            if buses <= 0:
+                logger.warning(
+                    "Route %s has buses=%s — clamped to 1 for knapsack weight.",
+                    item.get("route_id", "?"), buses,
+                )
+            weights.append(max(1, int(buses)))
+            values.append(int(item.get("passengers", 0)))
 
+        # DP table: dp[i][w] = max value using first i items with capacity w
         dp = [[0] * (capacity + 1) for _ in range(n + 1)]
 
         for i in range(1, n + 1):
             for w in range(capacity + 1):
                 if weights[i - 1] <= w:
+                    # Recurrence: include or exclude item i
                     dp[i][w] = max(
                         values[i - 1] + dp[i - 1][w - weights[i - 1]],
                         dp[i - 1][w],
@@ -31,7 +81,7 @@ class ResourceAllocationDP(BaseAlgorithm):
                 else:
                     dp[i][w] = dp[i - 1][w]
 
-        # reconstruct solution
+        # Backtrack to reconstruct the optimal subset
         w = capacity
         selected = []
 
@@ -43,7 +93,7 @@ class ResourceAllocationDP(BaseAlgorithm):
                 selected.append(data_list[i - 1])
                 w -= weights[i - 1]
 
-        # build schedule
+        # Build schedule dict from selected routes
         schedule = {}
         for idx, route in enumerate(selected):
             bus_id = route.get("route_id", f"B{idx+1}")
