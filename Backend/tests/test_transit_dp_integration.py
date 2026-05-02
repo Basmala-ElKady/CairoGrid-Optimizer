@@ -3,11 +3,12 @@ from Backend.services.transit_service import TransitService
 
 
 def test_transit_integration():
+    """TransitService must combine DP scheduling and resource allocation results."""
     service = TransitService()
 
     schedule_data = [
-        {"bus_id": "B1", "time": "06:00", "passengers": 100},
-        {"bus_id": "B2", "time": "06:10", "passengers": 150},
+        {"bus_id": "B1", "start_time": "06:00", "end_time": "06:30", "passengers": 100},
+        {"bus_id": "B2", "start_time": "07:00", "end_time": "07:30", "passengers": 150},
     ]
 
     resource_data = [
