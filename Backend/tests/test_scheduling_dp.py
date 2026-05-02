@@ -2,6 +2,7 @@ import pytest
 from Backend.algorithms.dp.scheduling import SchedulingDP
 
 
+
 def test_empty_input():
     algo = SchedulingDP()
     result = algo.execute_with_metrics([], capacity=None)[0]

@@ -5,8 +5,7 @@ from Backend.models.node import Node
 from Backend.models.edge import Edge
 from Backend.models.enums import LocationType
 from Backend.algorithms.shortest_path.astar import AStarAlgorithm
-from Backend.algorithms.shortest_path.dijkstra import DijkstraAlgorithm
-
+from Backend.algorithms.shortest_path.dijkstra import Dijkstra as DijkstraAlgorithm
 
 def build_small_graph():
     r"""
