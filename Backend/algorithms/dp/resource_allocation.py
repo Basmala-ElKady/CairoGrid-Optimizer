@@ -1,5 +1,5 @@
 """
-0/1 Knapsack via Dynamic Programming for bus fleet resource allocation.
+0/1 Knapsack via Dynamic Programming for bus resource allocation.
 
     dp[i][w] = max(values[i-1] + dp[i-1][w - weights[i-1]], dp[i-1][w])
 
@@ -18,8 +18,6 @@ logger = logging.getLogger(__name__)
 
 class ResourceAllocationDP(BaseAlgorithm):
     """
-    0/1 Knapsack DP for allocating a limited bus fleet across routes
-    to maximise total daily passenger coverage.
 
     State definition:
         dp[i][w] = maximum passengers achievable considering the first
