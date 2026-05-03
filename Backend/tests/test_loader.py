@@ -1,11 +1,17 @@
+from pathlib import Path
+import sys
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 import sys
 import os
 
-# Ensure the project root is in the system path for imports
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from utils.data_loader import DataLoader
-from models.enums import LocationType, TimePeriod
+
+from Backend.utils.data_loader import DataLoader
+from Backend.models.enums import LocationType, TimePeriod
 
 def run_loader_test():
     """

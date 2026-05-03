@@ -1,3 +1,10 @@
+from pathlib import Path
+import sys
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 import csv
 
 from Backend.graph.transport_graph import TransportGraph
@@ -49,3 +56,6 @@ def test_emergency_routing_nearest(tmp_path):
     assert result['path'][-1] == 'F9'
     assert result['metadata'].get('hospital_id') == 'F9'
     assert result['metadata'].get('hospital_name') == 'Qasr El Aini Hospital'
+if __name__ == "__main__":
+    import pytest
+    sys.exit(pytest.main([__file__, "-v", "-s"]))

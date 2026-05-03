@@ -1,3 +1,10 @@
+from pathlib import Path
+import sys
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 """
 Test emergency routing to verify the fix for empty path bug.
 This test focuses on the core fixes:
@@ -158,7 +165,6 @@ def test_astar_goal_validation():
     print("✅ Invalid goal test passed")
     
     print("\n✅ TEST PASSED: A* goal validation works correctly")
-    return True
 
 
 def test_astar_path_reconstruction():
@@ -198,7 +204,6 @@ def test_astar_path_reconstruction():
         assert next_node in neighbors, f"Path not continuous: {current} -> {next_node}"
     
     print("\n✅ TEST PASSED: A* path reconstruction works correctly")
-    return True
 
 
 if __name__ == "__main__":

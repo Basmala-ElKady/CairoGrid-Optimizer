@@ -1,3 +1,10 @@
+from pathlib import Path
+import sys
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 import unittest
 from Backend.services.route_service import RouteService
 from Backend.services.emergency_service import EmergencyService
@@ -36,7 +43,8 @@ class TestCairoRoutingSystem(unittest.TestCase):
         cls.route_service = RouteService()
         # For EmergencyService, we point to a dummy/real CSV if needed, 
         # but here it will use the graph nodes we provided.
-        cls.emergency_service = EmergencyService(cls.graph)
+        facilities_path = str(PROJECT_ROOT / "Backend" / "data" / "processed" / "facilities.csv")
+        cls.emergency_service = EmergencyService(cls.graph, facilities_csv=facilities_path)
 
     def test_shortest_path_standard(self):
         """Test standard Dijkstra routing via RouteService."""
@@ -65,7 +73,8 @@ class TestCairoRoutingSystem(unittest.TestCase):
         """
         # We use a custom priority to see its effect
         ip = IntersectionPriority(default_emergency_multiplier=0.5)
-        emergency_svc = EmergencyService(self.graph, intersection_priority=ip)
+        facilities_path = str(PROJECT_ROOT / "Backend" / "data" / "processed" / "facilities.csv")
+        emergency_svc = EmergencyService(self.graph, facilities_csv=facilities_path, intersection_priority=ip)
         
         # This will use A* inside EmergencyService
         result = emergency_svc.get_nearest_hospital_route(

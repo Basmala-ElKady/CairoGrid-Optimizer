@@ -1,13 +1,20 @@
+from pathlib import Path
+import sys
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 import sys
 import os
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from algorithms.greedy.traffic_signal import TrafficSignalOptimizer
-from models.enums import TimePeriod
-from utils.data_loader import DataLoader
-from graph.graph_builder import GraphBuilder
-from models.enums import LocationType
+
+from Backend.algorithms.greedy.traffic_signal import TrafficSignalOptimizer
+from Backend.models.enums import TimePeriod
+from Backend.utils.data_loader import DataLoader
+from Backend.graph.graph_builder import GraphBuilder
+from Backend.models.enums import LocationType
 
 
 def test_real_optimizer():

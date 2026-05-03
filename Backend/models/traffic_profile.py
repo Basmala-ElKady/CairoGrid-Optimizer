@@ -1,5 +1,5 @@
 from typing import Dict
-from .enums import TimePeriod
+from Backend.models.enums import TimePeriod
 
 class TrafficProfile:
     """Handles time-dependent traffic flow data for a specific road (Edge)."""

@@ -14,7 +14,9 @@ class SchedulingDP(BaseAlgorithm):
         })
         self._memo_cache = {}
 
-    def run(self, data_list, capacity=None, **kwargs):
+    def run(self, *args, **kwargs):
+        data_list = kwargs.pop("data_list", args[0] if len(args) > 0 else [])
+        capacity = kwargs.pop("capacity", args[1] if len(args) > 1 else None)
         """
         Executes the scheduling optimization.
         

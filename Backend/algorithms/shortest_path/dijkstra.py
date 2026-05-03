@@ -9,9 +9,10 @@ class Dijkstra(BaseShortestPath):
         self.metadata["space_complexity"] = "O(V)"
         self.cost_evaluator = CostEvaluator()
 
-    def run(self, graph=None, **kwargs):
-        start = kwargs.get("start_node")
-        end = kwargs.get("end_node")
+    def run(self, *args, **kwargs):
+        graph = kwargs.pop("graph", args[0] if len(args) > 0 else None)
+        start = kwargs.pop("start_node", args[1] if len(args) > 1 else None)
+        end = kwargs.pop("end_node", args[2] if len(args) > 2 else None)
         distances, previous = self._init_structures(graph, start)
 
         pq = [(0, start)]

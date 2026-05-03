@@ -1,8 +1,8 @@
 from typing import List
 
-from algorithms.greedy.traffic_signal import TrafficSignalOptimizer
-from algorithms.greedy.emergency_priority import EmergencyPrioritySystem
-from models.enums import TimePeriod
+from Backend.algorithms.greedy.traffic_signal import TrafficSignalOptimizer
+from Backend.algorithms.greedy.emergency_priority import EmergencyPrioritySystem
+from Backend.models.enums import TimePeriod
 
 
 class TrafficService:

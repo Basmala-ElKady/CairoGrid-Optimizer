@@ -72,24 +72,21 @@ def test_service_initializes_prim_algorithm():
     assert isinstance(service.algorithm, PrimAlgorithm)
 
 
-def test_service_calls_execute_with_metrics(monkeypatch, expansion_nodes, expansion_edges):
+def test_service_calls_run(monkeypatch, expansion_nodes, expansion_edges):
     calls = []
 
     class FakePrimAlgorithm:
-        def execute_with_metrics(self, **kwargs):
+        def run(self, graph=None, **kwargs):
             calls.append(kwargs)
-            return (
-                {
-                    "edges": ["A-B"],
-                    "cost": 1.0,
-                    "metadata": {
-                        "algorithm": "Prim",
-                        "districts_connected": 2,
-                        "total_population_reached": 300,
-                    },
+            return {
+                "edges": ["A-B"],
+                "cost": 1.0,
+                "metadata": {
+                    "algorithm": "Prim",
+                    "districts_connected": 2,
+                    "total_population_reached": 300,
                 },
-                12.5,
-            )
+            }
 
     monkeypatch.setattr(planning_service, "PrimAlgorithm", FakePrimAlgorithm)
     service = PlanningService()
@@ -97,7 +94,7 @@ def test_service_calls_execute_with_metrics(monkeypatch, expansion_nodes, expans
     response = service.plan_expansion(expansion_edges, expansion_nodes)
 
     assert calls == [{"edge_list": expansion_edges, "nodes": expansion_nodes}]
-    assert response["metrics"]["execution_time_ms"] == 12.5
+    assert isinstance(response["metrics"]["execution_time_ms"], float)
     assert response["result"]["edges"] == ["A-B"]
     assert response["result"]["cost"] == 1.0
 

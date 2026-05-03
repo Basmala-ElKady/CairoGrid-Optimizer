@@ -19,7 +19,8 @@ class PrimAlgorithm(BaseAlgorithm):
             "space_complexity": "O(V + E)"
         }
 
-    def run(self, graph=None, **kwargs) -> Dict[str, Any]:
+    def run(self, *args, **kwargs) -> Dict[str, Any]:
+        graph = kwargs.pop("graph", args[0] if len(args) > 0 else None)
         edge_list: List[Edge] = kwargs.get('edge_list', [])
         nodes: Dict[str, Node] = kwargs.get('nodes', {})
         

@@ -1,10 +1,11 @@
-from algorithms.common.base_algorithm import BaseAlgorithm
+from Backend.algorithms.common.base_algorithm import BaseAlgorithm
 
 class EmergencyPrioritySystem(BaseAlgorithm):
     def __init__(self):
         super().__init__("Emergency Priority Overrider")
 
-    def run(self, graph, **kwargs):
+    def run(self, *args, **kwargs):
+        graph = kwargs.pop("graph", args[0] if len(args) > 0 else None)
         base_plan = kwargs.get('base_signal_plan', {})
         emergency_path = kwargs.get('emergency_path', [])
 

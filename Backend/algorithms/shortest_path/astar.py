@@ -18,8 +18,10 @@ class AStarAlgorithm(BaseShortestPath):
         self.intersection_priority: Optional[IntersectionPriority] = None
         self.cost_evaluator = CostEvaluator()
 
-    def run(self, graph, start_node, **kwargs):
-        end = kwargs.get("end_node")
+    def run(self, *args, **kwargs):
+        graph = kwargs.pop("graph", args[0] if len(args) > 0 else None)
+        start_node = kwargs.pop("start_node", args[1] if len(args) > 1 else None)
+        end = kwargs.pop("end_node", args[2] if len(args) > 2 else None)
         goal_nodes = kwargs.get("goal_nodes")
         initial_time = kwargs.get("initial_time", None)
         debug = kwargs.get("debug", False)
