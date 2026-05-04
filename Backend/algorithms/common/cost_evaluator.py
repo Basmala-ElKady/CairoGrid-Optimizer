@@ -109,7 +109,11 @@ class CostEvaluator:
 
         base = self._base_weight(edge, initial_time, arrival_time_at_current, use_dynamic)
         mult = self._emergency_multiplier(graph, current_node, is_emergency, kwargs)
-        return base * mult
+        
+        # Apply traffic congestion index if provided
+        congestion_index = kwargs.get("congestion_index", 1.0)
+        
+        return base * mult * congestion_index
 
     def min_multiplier_for_heuristic(self, **kwargs) -> float:
         if not self.should_apply_emergency(kwargs):
@@ -143,4 +147,6 @@ class CostEvaluator:
             intersection_mult = self._clamp_multiplier(emergency_priority_intersection)
             return min_mult * intersection_mult
 
-        return min_mult
+        # Apply traffic congestion index if provided
+        congestion_index = kwargs.get("congestion_index", 1.0)
+        return min_mult * congestion_index

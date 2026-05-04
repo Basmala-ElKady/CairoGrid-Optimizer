@@ -4,15 +4,19 @@ from typing import Dict, Optional
 from Backend.algorithms.shortest_path.astar import AStarAlgorithm
 from Backend.services.intersection_priority import IntersectionPriority
 from Backend.graph.transport_graph import TransportGraph
+from Backend.services.traffic_service import TrafficService
+from Backend.models.enums import TimePeriod
+from Backend.algorithms.common.cost_evaluator import CostEvaluator
 
 
 class EmergencyService:
-    def __init__(self, graph: TransportGraph, facilities_csv: str = None, intersection_priority: IntersectionPriority = None):
+    def __init__(self, graph: TransportGraph, facilities_csv: str = None, intersection_priority: IntersectionPriority = None, traffic_service: TrafficService = None):
         self.graph = graph
         self.facilities_csv = facilities_csv or "Backend/data/processed/facilities.csv"
         self.astar = AStarAlgorithm()
         # IntersectionPriority instance used for emergency routing; allow injection for tests
         self.intersection_priority = intersection_priority or IntersectionPriority()
+        self.traffic_service = traffic_service or TrafficService()
 
     def _load_medical_facilities(self) -> Dict[str, Dict]:
         try:
@@ -66,8 +70,8 @@ class EmergencyService:
             print(f"[DEBUG] EmergencyService: Selected hospital {best_id} at distance {best_dist:.3f}", flush=True)
         return best_id
 
-    def get_nearest_hospital_route(self, start_node: str, current_time: Optional[float] = None, is_emergency: bool = True) -> Dict:
-        print(f"[DEBUG] EmergencyService.get_nearest_hospital_route: start={start_node}, time={current_time}, is_emergency={is_emergency}", flush=True)
+    def get_nearest_hospital_route(self, start_node: str, current_time: Optional[float] = None, is_emergency: bool = True, congestion_index: Optional[float] = None) -> Dict:
+        print(f"[DEBUG] EmergencyService.get_nearest_hospital_route: start={start_node}, time={current_time}, is_emergency={is_emergency}, congestion_index={congestion_index}", flush=True)
         
         facilities = self._load_medical_facilities()
         print(f"[DEBUG] EmergencyService: Loaded {len(facilities)} medical facilities from CSV", flush=True)
@@ -85,6 +89,14 @@ class EmergencyService:
 
         print(f"[DEBUG] EmergencyService: Running A* to {hospital_id}", flush=True)
         
+        # Calculate live congestion index if not provided
+        if congestion_index is None:
+            period = CostEvaluator.map_time_to_period(current_time) if current_time is not None else TimePeriod.NIGHT
+            congestion_index = self.traffic_service.calculate_congestion_index(self.graph, period)
+            print(f"[DEBUG] EmergencyService: Calculated live congestion index for {period.value} is {congestion_index}", flush=True)
+        else:
+            print(f"[DEBUG] EmergencyService: Using provided congestion index {congestion_index}", flush=True)
+
         # 2. run A* with single goal
         # Emergency vehicles get 20% speed boost globally (base_emergency_multiplier=0.8)
         # Plus optional additional discount at intersections via intersection_priority
@@ -96,6 +108,7 @@ class EmergencyService:
             is_emergency=is_emergency,
             base_emergency_multiplier=0.8 if is_emergency else 1.0,  # 20% faster when emergency
             intersection_priority=self.intersection_priority,
+            congestion_index=congestion_index,
             mode="realistic"
         )
 
