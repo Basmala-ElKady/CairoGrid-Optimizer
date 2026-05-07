@@ -1,14 +1,12 @@
-from pathlib import Path
 import sys
-
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-
+from pathlib import Path
 import pytest
+
+# Add project root to sys.path
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
 from Backend.algorithms.dp.scheduling import SchedulingDP
-
-
 
 def test_empty_input():
     algo = SchedulingDP()
@@ -21,20 +19,25 @@ def test_empty_input():
 
 def test_basic_schedule():
     algo = SchedulingDP()
-
+    
+    # We will provide trips that DO NOT overlap so they can be summed
+    # Each trip lasts 30 mins (0.5 hours) by default in our code
     data = [
-        {"bus_id": "B1", "time": "06:00", "passengers": 100},
-        {"bus_id": "B1", "time": "06:15", "passengers": 120},
-        {"bus_id": "B2", "time": "06:05", "passengers": 80},
+        {"bus_id": "B1", "time": "06:00", "passengers": 100}, # Ends at 06:30
+        {"bus_id": "B1", "time": "06:30", "passengers": 120}, # Starts when 1st ends (Compatible)
+        {"bus_id": "B2", "time": "07:00", "passengers": 80},  # Starts after 2nd ends (Compatible)
     ]
-
-    result = algo.run(data, capacity=None)
-
+    
+    # Use execute_with_metrics to test the full flow
+    result, exec_time = algo.execute_with_metrics(data, capacity=None)
+    
     assert "schedule" in result
     assert "cost" in result
-    assert "metadata" in result
     assert isinstance(result["schedule"], dict)
+    
+    # Now they should be summed: 100 + 120 + 80 = 300
     assert result["metadata"]["total_passengers_covered"] == 300
+    print(f"Test Passed! Execution time: {exec_time}ms")
 
 
 def test_time_ordering():

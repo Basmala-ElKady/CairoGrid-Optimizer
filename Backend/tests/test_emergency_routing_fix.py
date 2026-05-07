@@ -1,21 +1,8 @@
 from pathlib import Path
 import sys
-
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-
-"""
-Test emergency routing to verify the fix for empty path bug.
-This test focuses on the core fixes:
-1. EmergencyService filters facilities to only reachable ones
-2. A* validates goal nodes exist in graph
-3. A* doesn't return empty paths when goals are valid
-"""
-import sys
-from pathlib import Path
 import tempfile
 import pandas as pd
+import csv
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
@@ -28,7 +15,13 @@ from Backend.models.edge import Edge
 from Backend.models.enums import LocationType, TimePeriod
 from Backend.services.emergency_service import EmergencyService
 from Backend.services.intersection_priority import IntersectionPriority
-
+"""
+Test emergency routing to verify the fix for empty path bug.
+This test focuses on the core fixes:
+1. EmergencyService filters facilities to only reachable ones
+2. A* validates goal nodes exist in graph
+3. A* doesn't return empty paths when goals are valid
+"""
 
 def create_test_facilities_csv():
     """Create a temporary CSV with test medical facilities"""

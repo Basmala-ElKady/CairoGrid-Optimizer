@@ -1,11 +1,12 @@
-from pathlib import Path
 import sys
+from pathlib import Path
+import unittest
 
+# Add project root to sys.path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-import unittest
 from Backend.services.route_service import RouteService
 from Backend.services.emergency_service import EmergencyService
 from Backend.graph.graph_builder import GraphBuilder

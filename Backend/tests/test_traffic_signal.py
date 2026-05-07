@@ -1,14 +1,12 @@
-from pathlib import Path
-import sys
-
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-
 import sys
 import os
+from pathlib import Path
 
-
+# Add project root and Backend directory to sys.path
+project_root = Path(__file__).parent.parent.parent
+backend_root = project_root / "Backend"
+sys.path.insert(0, str(project_root))
+sys.path.insert(0, str(backend_root))
 
 from Backend.algorithms.greedy.traffic_signal import TrafficSignalOptimizer
 from Backend.models.enums import TimePeriod

@@ -1,15 +1,11 @@
-from pathlib import Path
-import sys
-
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-
 import sys
 import os
 import pandas as pd
+from pathlib import Path
 
-
+project_root = Path(__file__).resolve().parents[2] 
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 from Backend.models.node import Node
 from Backend.models.edge import Edge

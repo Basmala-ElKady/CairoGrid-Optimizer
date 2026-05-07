@@ -1,9 +1,11 @@
-from pathlib import Path
 import sys
+from pathlib import Path
+import pytest
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+# Add project root to sys.path
+project_root = Path(__file__).parent.parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 from Backend.graph.transport_graph import TransportGraph
 from Backend.models.node import Node
@@ -184,6 +186,11 @@ def test_intersection_priority_effect():
 
     assert res_em['cost'] <= res_norm['cost'], \
         f"Emergency cost {res_em['cost']} should be <= normal cost {res_norm['cost']}"
+
 if __name__ == "__main__":
-    import pytest
-    sys.exit(pytest.main([__file__, "-v", "-s"]))
+    test_astar_basic_path()
+    test_astar_time_dependent_prefers_alternate_in_morning()
+    test_astar_emergency_priority_effect()
+    test_intersection_priority_effect()
+    print("✅ All A* tests PASSED")
+    

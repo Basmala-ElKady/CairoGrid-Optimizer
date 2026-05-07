@@ -1,13 +1,12 @@
-from pathlib import Path
 import sys
-
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-
+from pathlib import Path
 import pytest
-from Backend.algorithms.dp.resource_allocation import ResourceAllocationDP
 
+# Add project root to sys.path
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+from Backend.algorithms.dp.resource_allocation import ResourceAllocationDP
 
 def test_zero_capacity():
     algo = ResourceAllocationDP()
@@ -131,5 +130,13 @@ def test_capacity_respected():
 
     assert len(result["schedule"]) <= len(data)
 if __name__ == "__main__":
-    import pytest
-    sys.exit(pytest.main([__file__, "-v", "-s"]))
+    test_zero_capacity()
+    test_single_item_fit()
+    test_optimal_selection()
+    test_output_format()
+    test_schedule_structure()
+    test_capacity_smaller_than_all()
+    test_empty_data()
+    test_tie_case_consistency()
+    test_capacity_respected()
+    print("✅ All resource allocation DP tests PASSED")

@@ -5,7 +5,6 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-import pytest
 
 from Backend.graph.transport_graph import TransportGraph
 from Backend.models.node import Node
@@ -91,6 +90,7 @@ def test_astar_equals_dijkstra():
     # Assertion 3: Both should find same optimal path length
     assert len(dres['path']) == len(ares['path']), \
         f"Path lengths differ: Dijkstra {len(dres['path'])} vs A* {len(ares['path'])}"
+
 if __name__ == "__main__":
-    import pytest
-    sys.exit(pytest.main([__file__, "-v", "-s"]))
+    test_astar_equals_dijkstra()
+    print("✅ test_astar_equals_dijkstra PASSED")
