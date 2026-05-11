@@ -1,0 +1,10 @@
+# Stage: Serve static frontend with Nginx
+FROM nginx:alpine
+
+# Copy all frontend files into Nginx's default web root
+COPY Frontend/ /usr/share/nginx/html/
+
+# Expose port 80
+EXPOSE 80
+
+# Nginx starts automatically as the default CMD
