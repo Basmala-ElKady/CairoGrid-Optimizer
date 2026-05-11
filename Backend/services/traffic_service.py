@@ -3,6 +3,7 @@ from typing import List
 from Backend.algorithms.greedy.traffic_signal import TrafficSignalOptimizer
 from Backend.algorithms.greedy.emergency_priority import EmergencyPrioritySystem
 from Backend.models.enums import TimePeriod
+from Backend.services.traffic_ml_service import TrafficMLService
 
 
 class TrafficService:
@@ -13,9 +14,10 @@ class TrafficService:
     3. Congestion index calculation
     """
 
-    def __init__(self):
+    def __init__(self, graph):
         self.greedy = TrafficSignalOptimizer()
         self.emergency = EmergencyPrioritySystem()
+        self.ml = TrafficMLService(graph).train()
 
     # MAIN PIPELINE
 
