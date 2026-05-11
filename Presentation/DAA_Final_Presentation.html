@@ -2,516 +2,1893 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=1280, height=720, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Cairo: Unified Optimization Framework | DAA Final Presentation</title>
-    <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;600;700;800&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         :root {
-            --teal: #10b981;
-            --teal-glow: rgba(16, 185, 129, 0.15);
-            --dark-blue: #020617;
-            --surface: rgba(15, 23, 42, 0.6);
-            --border: rgba(255, 255, 255, 0.1);
-            --text-dim: #94a3b8;
-            --text-bright: #f1f5f9;
-            --accent: #34d399;
+            --bg: #040914;
+            --bg-2: #07101f;
+            --surface: rgba(10, 18, 34, 0.72);
+            --surface-2: rgba(15, 27, 47, 0.78);
+            --border: rgba(143, 255, 226, 0.12);
+            --border-strong: rgba(35, 201, 167, 0.32);
+            --text: #edf5ff;
+            --muted: #94a9c6;
+            --teal: #23c9a7;
+            --teal-2: #7ef3d6;
+            --lime: #b8ff5c;
+            --gold: #ffce73;
+            --red: #ff7a7a;
+            --shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+            --radius: 26px;
+            --slide-width: min(1280px, calc(100vw - 28px));
         }
 
-        @page { size: 1280px 720px; margin: 0; }
-        
-        * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
-        
-        body { 
-            margin: 0; 
-            padding: 0; 
-            background: #000; 
-            font-family: 'Inter', sans-serif; 
-            color: var(--text-dim); 
-            overflow-y: auto; 
+        * {
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
-        
-        .slide { 
-            width: 1280px; 
-            height: 720px; 
-            padding: 60px 100px; 
-            background: linear-gradient(180deg, #020617 0%, #000000 100%);
-            position: relative; 
-            page-break-after: always; 
-            overflow: hidden; 
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            margin: 0;
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            background:
+                radial-gradient(circle at 18% 12%, rgba(35, 201, 167, 0.16), transparent 28%),
+                radial-gradient(circle at 82% 18%, rgba(126, 243, 214, 0.12), transparent 24%),
+                radial-gradient(circle at 50% 82%, rgba(184, 255, 92, 0.08), transparent 26%),
+                linear-gradient(180deg, var(--bg) 0%, #02050d 100%);
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 64px 64px;
+            mask-image: linear-gradient(180deg, rgba(0,0,0,0.3), rgba(0,0,0,0.08));
+            pointer-events: none;
+            opacity: 0.28;
+        }
+
+        .ambient {
+            position: fixed;
+            border-radius: 999px;
+            filter: blur(90px);
+            pointer-events: none;
+            opacity: 0.36;
+            z-index: 0;
+        }
+
+        .ambient.a { width: 360px; height: 360px; background: rgba(35, 201, 167, 0.22); top: -80px; right: -60px; }
+        .ambient.b { width: 420px; height: 420px; background: rgba(126, 243, 214, 0.14); bottom: -120px; left: -120px; }
+
+        .hud {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            backdrop-filter: blur(18px);
+            background: rgba(3, 8, 18, 0.74);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .hud-inner {
+            width: var(--slide-width);
             margin: 0 auto;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 14px 16px 12px;
+            display: flex;
+            align-items: center;
+            gap: 18px;
         }
 
-        .slide-content {
-            height: 100%;
-            max-height: 100%;
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .brand-mark {
+            width: 38px;
+            height: 38px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(35, 201, 167, 0.95), rgba(126, 243, 214, 0.82));
+            box-shadow: 0 0 30px rgba(35, 201, 167, 0.28);
+        }
+
+        .brand-text {
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
+            min-width: 0;
+        }
+
+        .brand-title {
+            font-family: 'Urbanist', sans-serif;
+            font-weight: 800;
+            font-size: 15px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .brand-subtitle {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .hud-spacer { flex: 1; }
+
+        .hud-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--muted);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+        }
+
+        .progress {
+            width: 160px;
+            height: 8px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+            overflow: hidden;
             position: relative;
-            z-index: 2;
+        }
+
+        .progress span {
+            display: block;
+            height: 100%;
+            width: 5%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, var(--teal), var(--teal-2));
+            box-shadow: 0 0 18px rgba(35, 201, 167, 0.45);
+            transition: width 220ms ease;
+        }
+
+        .deck {
+            position: relative;
+            z-index: 1;
+            width: var(--slide-width);
+            margin: 18px auto 60px;
+            display: grid;
+            gap: 20px;
+        }
+
+        .slide {
+            position: relative;
+            min-height: 720px;
+            padding: 34px 36px 28px;
+            border-radius: 28px;
+            background:
+                linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)),
+                linear-gradient(180deg, rgba(7, 15, 28, 0.98), rgba(3, 7, 16, 0.98));
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            break-after: page;
+            page-break-after: always;
         }
 
         .slide::before {
             content: '';
             position: absolute;
-            top: -10%;
-            right: -10%;
-            width: 600px;
-            height: 600px;
-            background: radial-gradient(circle, var(--teal-glow) 0%, transparent 70%);
-            z-index: 1;
+            inset: 0;
+            background:
+                radial-gradient(circle at top right, rgba(35, 201, 167, 0.14), transparent 28%),
+                radial-gradient(circle at bottom left, rgba(126, 243, 214, 0.09), transparent 30%);
             pointer-events: none;
         }
 
-        h1 { 
-            font-family: 'Urbanist', sans-serif; 
-            font-size: 80px; 
-            font-weight: 800; 
-            line-height: 1.1; 
-            margin: 0; 
-            letter-spacing: -3px; 
-            color: var(--text-bright);
-        }
-        h1 span { 
-            background: linear-gradient(135deg, var(--teal), #34d399);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        h2 { 
-            font-family: 'Urbanist', sans-serif; 
-            font-size: 38px; 
-            font-weight: 700; 
-            color: var(--text-bright); 
-            margin: 0 0 15px 0; 
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-        h2::after {
+        .slide::after {
             content: '';
-            height: 2px;
-            flex-grow: 1;
-            background: linear-gradient(90deg, var(--teal), transparent);
-            max-width: 150px;
+            position: absolute;
+            inset: auto 0 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(35, 201, 167, 0.42), transparent);
+            opacity: 0.8;
         }
 
-        h3 { 
+        .slide-content {
+            position: relative;
+            z-index: 1;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .slide-head {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 18px;
+        }
+
+        .slide-kicker {
+            color: var(--teal-2);
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.26em;
+            margin-bottom: 10px;
+        }
+
+        h1, h2, h3, h4 {
             font-family: 'Urbanist', sans-serif;
-            font-size: 24px; 
-            font-weight: 600; 
-            margin: 0 0 10px 0; 
-            color: var(--accent); 
-            letter-spacing: -0.5px;
+            margin: 0;
+            color: var(--text);
         }
 
-        p { 
-            font-size: 18px; 
-            line-height: 1.7; 
-            margin: 0 0 12px 0; 
-            font-weight: 300;
+        h1 {
+            font-size: clamp(50px, 5.9vw, 84px);
+            line-height: 0.96;
+            letter-spacing: -0.05em;
+            max-width: 11ch;
         }
 
-        b { color: var(--text-bright); font-weight: 600; }
-
-        .grid-2 { 
-            display: grid; 
-            grid-template-columns: 1fr 1fr; 
-            gap: 40px; 
-            align-items: center; 
-            flex-grow: 1;
+        h1 span,
+        .accent {
+            background: linear-gradient(135deg, var(--teal), var(--teal-2));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
         }
 
-        .flex-center {
-            display: flex;
-            flex-direction: column;
+        h2 {
+            font-size: clamp(28px, 2.8vw, 42px);
+            line-height: 1.04;
+            letter-spacing: -0.04em;
+        }
+
+        h3 {
+            font-size: 22px;
+            letter-spacing: -0.03em;
+            margin-bottom: 10px;
+        }
+
+        p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 16px;
+            line-height: 1.7;
+        }
+
+        .hero-grid,
+        .two-col,
+        .three-col,
+        .four-col {
+            display: grid;
+            gap: 18px;
+        }
+
+        .hero-grid { grid-template-columns: 1.1fr 0.9fr; align-items: center; flex: 1; }
+        .two-col { grid-template-columns: 1fr 1fr; }
+        .three-col { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .four-col { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+        .card {
+            position: relative;
+            background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 18px 40px rgba(0,0,0,0.26);
+            backdrop-filter: blur(18px);
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at top right, rgba(35, 201, 167, 0.08), transparent 35%);
+            pointer-events: none;
+        }
+
+        .card-inner {
+            position: relative;
+            z-index: 1;
+            padding: 22px;
+        }
+
+        .card.soft {
+            background: linear-gradient(180deg, rgba(13, 23, 41, 0.74), rgba(9, 16, 31, 0.82));
+        }
+
+        .card.highlight {
+            border-color: rgba(35, 201, 167, 0.28);
+            box-shadow: 0 0 0 1px rgba(35, 201, 167, 0.06), 0 22px 48px rgba(0,0,0,0.32);
+        }
+
+        .glass-strip {
+            display: inline-flex;
             align-items: center;
-            text-align: center;
-            justify-content: center;
-            height: 100%;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.04);
+            color: var(--text);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
         }
 
-        .box { 
-            background: var(--surface); 
-            backdrop-filter: blur(20px); 
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid var(--border); 
-            border-radius: 24px; 
-            padding: 30px; 
-            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5);
-            height: 100%;
+        .pill-row,
+        .tag-row {
             display: flex;
-            flex-direction: column;
-            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
         }
 
-        .formula { 
-            background: rgba(16, 185, 129, 0.05); 
-            border: 1px solid rgba(16, 185, 129, 0.2); 
-            border-radius: 16px; 
-            padding: 20px; 
-            text-align: center; 
-            font-family: 'JetBrains Mono', monospace; 
-            font-size: 28px; 
-            color: var(--text-bright); 
-            margin: 15px 0; 
-            letter-spacing: 1px;
-        }
-
-        .image-box { 
-            border-radius: 20px; 
-            border: 1px solid var(--border); 
-            height: 100%; 
-            max-height: 350px;
-            width: 100%; 
-            overflow: hidden; 
-            background: #000;
-            display: flex;
+        .pill,
+        .tag {
+            display: inline-flex;
             align-items: center;
-            justify-content: center;
-        }
-        .image-box img { 
-            max-width: 100%; 
-            max-height: 100%;
-            object-fit: contain; 
-            background: #000;
-        }
-
-        .bullet-list { list-style: none; padding: 0; margin: 0; }
-        .bullet-list li { 
-            position: relative; 
-            padding-left: 35px; 
-            margin-bottom: 12px; 
-            font-size: 18px;
-        }
-        .bullet-list li i { 
-            position: absolute; 
-            left: 0; 
-            top: 2px; 
-            color: var(--teal); 
-            font-size: 18px; 
-            width: 25px;
-            height: 25px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            gap: 8px;
+            padding: 9px 12px;
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,0.08);
+            color: var(--text);
+            background: rgba(255,255,255,0.04);
+            font-size: 12px;
+            white-space: nowrap;
         }
 
-        .highlight-number { 
-            font-size: 90px; 
-            font-weight: 800; 
-            color: var(--teal); 
-            font-family: 'Urbanist'; 
+        .tag { color: var(--muted); }
+
+        .hero-visual {
+            min-height: 520px;
+            display: grid;
+            grid-template-rows: 1fr auto;
+            gap: 18px;
+        }
+
+        .network {
+            position: relative;
+            min-height: 370px;
+            border-radius: 28px;
+            background:
+                radial-gradient(circle at 50% 50%, rgba(35, 201, 167, 0.08), transparent 55%),
+                linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+            border: 1px solid rgba(35, 201, 167, 0.16);
+            overflow: hidden;
+        }
+
+        .network::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 48px 48px;
+            opacity: 0.45;
+        }
+
+        .node {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, var(--teal), var(--teal-2));
+            box-shadow: 0 0 20px rgba(35, 201, 167, 0.65);
+        }
+
+        .node::after {
+            content: attr(data-label);
+            position: absolute;
+            left: 18px;
+            top: -6px;
+            color: var(--text);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+            white-space: nowrap;
+            opacity: 0.86;
+        }
+
+        .edge-line {
+            position: absolute;
+            height: 2px;
+            background: linear-gradient(90deg, rgba(35,201,167,0), rgba(35,201,167,0.72), rgba(126,243,214,0));
+            opacity: 0.8;
+            transform-origin: left center;
+        }
+
+        .hero-stats,
+        .metric-grid,
+        .stats-grid,
+        .timeline,
+        .table-grid {
+            display: grid;
+            gap: 14px;
+        }
+
+        .hero-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+        .stat,
+        .metric,
+        .table-card,
+        .info-box {
+            padding: 18px;
+            border-radius: 22px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.035);
+        }
+
+        .stat-value {
+            font-family: 'Urbanist', sans-serif;
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: -0.03em;
             line-height: 1;
-            margin-bottom: 5px;
+            color: var(--text);
+            margin-bottom: 6px;
         }
 
-        .footer { 
-            font-size: 12px; 
-            color: #475569; 
-            letter-spacing: 2px; 
-            text-transform: uppercase; 
-            font-weight: 600;
-            padding-top: 20px;
-            border-top: 1px solid rgba(255,255,255,0.05);
+        .stat-label,
+        .metric-label,
+        .small-note,
+        .caption {
+            color: var(--muted);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
         }
 
-        table { width: 100%; border-collapse: separate; border-spacing: 0 5px; }
-        th { text-align: left; padding: 12px; color: var(--text-bright); font-family: 'Urbanist'; font-size: 18px; border-bottom: 2px solid var(--teal); }
-        td { padding: 12px; background: rgba(255,255,255,0.02); font-size: 16px; }
-        td:first-child { border-radius: 8px 0 0 8px; }
-        td:last-child { border-radius: 0 8px 8px 0; }
-        .node-count { font-weight: 700; color: var(--text-bright); }
+        .section-footer {
+            margin-top: auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            color: var(--muted);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+        }
 
-        .teal { color: var(--teal); }
-        .white { color: var(--text-bright); }
+        .bullet-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: grid;
+            gap: 12px;
+        }
+
+        .bullet-list li {
+            position: relative;
+            padding-left: 28px;
+            color: var(--muted);
+            font-size: 15px;
+            line-height: 1.65;
+        }
+
+        .bullet-list li::before {
+            content: '\f111';
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            position: absolute;
+            left: 0;
+            top: 3px;
+            font-size: 10px;
+            color: var(--teal);
+        }
+
+        .bullet-list strong,
+        strong {
+            color: var(--text);
+            font-weight: 700;
+        }
+
+        .formula {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: clamp(18px, 2.1vw, 28px);
+            color: var(--text);
+            padding: 18px 20px;
+            border-radius: 20px;
+            border: 1px solid rgba(35, 201, 167, 0.24);
+            background: linear-gradient(180deg, rgba(35, 201, 167, 0.08), rgba(35, 201, 167, 0.03));
+            overflow-x: auto;
+        }
+
+        .formula.small {
+            font-size: 15px;
+            line-height: 1.6;
+        }
+
+        .diagram {
+            position: relative;
+            min-height: 290px;
+            border-radius: 24px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background:
+                linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02)),
+                rgba(255,255,255,0.015);
+            overflow: hidden;
+        }
+
+        .diagram .stage {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            align-items: center;
+        }
+
+        .flow {
+            display: grid;
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+            gap: 12px;
+            align-items: center;
+        }
+
+        .flow-step {
+            padding: 14px 12px;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(8, 15, 28, 0.78);
+            text-align: center;
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .flow-step i {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 18px;
+            color: var(--teal);
+        }
+
+        .flow-step.active {
+            border-color: rgba(35, 201, 167, 0.34);
+            color: var(--text);
+            background: linear-gradient(180deg, rgba(35, 201, 167, 0.10), rgba(35, 201, 167, 0.03));
+        }
+
+        .metric-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+        .metric-title {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            color: var(--text);
+        }
+
+        .metric-body {
+            font-size: 15px;
+            color: var(--muted);
+            line-height: 1.65;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 14px 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            vertical-align: top;
+        }
+
+        th {
+            color: var(--text);
+            font-family: 'Urbanist', sans-serif;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+        }
+
+        td {
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.55;
+        }
+
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        .big-number {
+            font-family: 'Urbanist', sans-serif;
+            font-size: 56px;
+            font-weight: 900;
+            line-height: 0.92;
+            letter-spacing: -0.06em;
+        }
+
+        .center { text-align: center; }
+        .align-center { align-items: center; }
+
+        .spread {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .team-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .team-card {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 14px;
+            align-items: center;
+            padding: 18px;
+        }
+
+        .avatar {
+            width: 56px;
+            height: 56px;
+            border-radius: 18px;
+            display: grid;
+            place-items: center;
+            background: linear-gradient(135deg, rgba(35, 201, 167, 0.24), rgba(126, 243, 214, 0.10));
+            border: 1px solid rgba(35, 201, 167, 0.22);
+            font-size: 24px;
+        }
+
+        .team-name {
+            font-family: 'Urbanist', sans-serif;
+            font-size: 20px;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin-bottom: 4px;
+        }
+
+        .team-role {
+            color: var(--muted);
+            font-size: 13px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .credits {
+            display: grid;
+            gap: 10px;
+        }
+
+        .credit-line {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 12px 14px;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.07);
+            background: rgba(255,255,255,0.03);
+            color: var(--muted);
+        }
+
+        .credit-line strong { color: var(--text); }
+
+        .note {
+            padding: 14px 16px;
+            border-radius: 18px;
+            border: 1px solid rgba(255, 206, 115, 0.22);
+            background: rgba(255, 206, 115, 0.07);
+            color: #f0d7aa;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .note.danger {
+            border-color: rgba(255, 122, 122, 0.22);
+            background: rgba(255, 122, 122, 0.07);
+            color: #ffd1d1;
+        }
+
+        .chip-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.03);
+            color: var(--text);
+            font-size: 12px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .comparison-card {
+            padding: 20px;
+            border-radius: 22px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.03);
+        }
+
+        .comparison-card.greedy { border-color: rgba(255, 122, 122, 0.18); }
+        .comparison-card.dp { border-color: rgba(35, 201, 167, 0.22); }
+
+        .table-wrap {
+            overflow-x: auto;
+            border-radius: 22px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.02);
+        }
+
+        .footer-mini {
+            color: var(--muted);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+            text-align: right;
+        }
+
+        .title-grid {
+            display: grid;
+            grid-template-columns: 1.15fr 0.85fr;
+            gap: 18px;
+            align-items: center;
+            flex: 1;
+        }
+
+        .title-visual {
+            padding: 20px;
+            min-height: 520px;
+            display: grid;
+            gap: 16px;
+            align-content: space-between;
+        }
+
+        .title-visual-top {
+            display: grid;
+            gap: 14px;
+        }
+
+        .title-visual-panel {
+            padding: 18px;
+            border-radius: 22px;
+            border: 1px solid rgba(35, 201, 167, 0.18);
+            background: linear-gradient(180deg, rgba(35, 201, 167, 0.08), rgba(35, 201, 167, 0.03));
+        }
+
+        .title-metrics {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .title-metrics .metric { min-height: 106px; }
+
+        .stack { display: grid; gap: 12px; }
+
+        .stack .row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 16px;
+            border-radius: 18px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.07);
+        }
+
+        .row strong { color: var(--text); }
+
+        .muted-small {
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .grid-panel { display: grid; gap: 12px; }
+
+        .diagram-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+            color: var(--muted);
+            margin-bottom: 10px;
+        }
+
+        .timeline {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+
+        .timeline .metric { min-height: 160px; }
+
+        .timeline .big-number {
+            font-size: 40px;
+            margin-top: 6px;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 14px;
+        }
+
+        .results-card {
+            padding: 18px;
+            border-radius: 22px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.03);
+            min-height: 200px;
+        }
+
+        .results-card.placeholder {
+            border-style: dashed;
+            border-color: rgba(255, 206, 115, 0.24);
+            background: rgba(255, 206, 115, 0.04);
+        }
+
+        .results-card h3 { margin-bottom: 8px; }
+
+        .wide-gap { gap: 22px; }
+
+        .small-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .label-line {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .label-line .metric-label { margin: 0; }
+
+        @media (max-width: 1100px) {
+            .hero-grid,
+            .title-grid,
+            .two-col,
+            .comparison-grid,
+            .results-grid,
+            .small-grid,
+            .team-grid,
+            .timeline,
+            .metric-grid,
+            .three-col,
+            .four-col,
+            .hero-stats,
+            .title-metrics {
+                grid-template-columns: 1fr;
+            }
+
+            .hud-inner,
+            .deck,
+            .slide {
+                width: calc(100vw - 18px);
+            }
+
+            .slide { padding: 24px 18px 22px; }
+
+            .slide-head {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .hud-inner { flex-wrap: wrap; }
+
+            .progress {
+                width: 100%;
+                order: 4;
+            }
+
+            h1 { max-width: none; }
+            .hero-visual,
+            .title-visual { min-height: auto; }
+        }
+
+        @media print {
+            body { background: #000; }
+            .hud,
+            .ambient,
+            body::before { display: none !important; }
+            .deck {
+                width: 1280px;
+                margin: 0;
+                gap: 0;
+            }
+            .slide {
+                width: 1280px;
+                height: 720px;
+                min-height: 720px;
+                border-radius: 0;
+                box-shadow: none;
+                page-break-after: always;
+                break-after: page;
+            }
+        }
     </style>
 </head>
 <body>
+    <div class="ambient a"></div>
+    <div class="ambient b"></div>
 
-<!-- SLIDE 1: TITLE -->
-<div class="slide">
-    <div class="slide-content">
-        <div class="flex-center" style="width: 100%; flex-grow: 1;">
-            <p class="teal" style="letter-spacing: 8px; font-weight: 700; text-transform: uppercase; font-size: 14px; margin-bottom: 20px;">DAA Final Project Presentation</p>
-            <h1>Smart Cairo:<br><span>Unified Optimization</span> Framework</h1>
-            <div style="height: 4px; width: 100px; background: var(--teal); margin: 30px 0;"></div>
-            <p class="white" style="font-size: 28px; font-weight: 300; letter-spacing: 1px;">Routing Analysis & Fleet Resource Management</p>
-        </div>
-        <div class="footer">Alamein International University | AI Track</div>
-    </div>
-</div>
-
-<!-- SLIDE 2: INTRODUCTION -->
-<div class="slide">
-    <div class="slide-content">
-        <h2>Introduction & Vision</h2>
-        <div class="grid-2">
-            <div class="box">
-                <h3>The Urban Challenge</h3>
-                <p>Solving Cairo’s road congestion and transit inefficiency required an integrated mathematical framework combining pathfinding and combinatorial optimization.</p>
-                <p>Our approach transforms raw geographic data into <b>actionable intelligence</b> for urban mobility.</p>
-            </div>
-            <div>
-                <h3>Dual Engine Ecosystem</h3>
-                <ul class="bullet-list">
-                    <li><i class="fa-solid fa-route"></i> <b>Path Engine:</b> Dynamic Dijkstra & A* routing implemented in <b>Python</b>.</li>
-                    <li><i class="fa-solid fa-car"></i> <b>Resource Engine:</b> Combinatorial 0/1 Knapsack allocation for fleet efficiency.</li>
-                    <li><i class="fa-solid fa-shield-halved"></i> <b>Ethical Engine:</b> Weighted priority logic to ensure equitable service.</li>
-                </ul>
-            </div>
-        </div>
-        <div class="footer">Alamein International University | AI Track</div>
-    </div>
-</div>
-
-<!-- SLIDE 3: GRAPH REPRESENTATION -->
-<div class="slide">
-    <div class="slide-content">
-        <h2>Map Representation: Graph G(V, E)</h2>
-        <div class="grid-2">
-            <div class="image-box">
-                <img src="https://images.unsplash.com/photo-1545147480-7f39009e00c4?w=1280" alt="Cairo Smart City Traffic Flow">
-            </div>
-            <div class="box">
-                <h3>Theoretical Model</h3>
-                <p>The city road grid is represented as a high-density <b>Directed Weighted Graph</b>:</p>
-                <ul class="bullet-list">
-                    <li><i class="fa-solid fa-circle-dot"></i> <b>Vertices (V):</b> 15+ District nodes (Maadi, Nasr City, Downtown).</li>
-                    <li><i class="fa-solid fa-arrows-left-right"></i> <b>Edges (E):</b> Directed road segments with dynamic weights.</li>
-                    <li><i class="fa-solid fa-weight-hanging"></i> <b>Weights (W):</b> Dynamic cost = Distance × (1 + Congestion).</li>
-                </ul>
-            </div>
-        </div>
-        <div class="footer">Alamein International University | AI Track</div>
-    </div>
-</div>
-
-<!-- SLIDE 4: ALGORITHM 1 -->
-<div class="slide">
-    <div class="slide-content">
-        <h2>Algorithm 1: Shortest Path Search</h2>
-        <div>
-            <div class="formula">f(n) = g(n) + h(n)</div>
-            <div class="grid-2" style="margin-top: 0;">
-                <div class="box">
-                    <h3>A* Search Implementation</h3>
-                    <p>While Dijkstra guarantees optimality, it is computationally expensive. Our system uses <b>A* Search</b> with an admissible Euclidean heuristic.</p>
-                </div>
-                <div class="box" style="border-left: 4px solid var(--teal);">
-                    <h3>Technical Implementation</h3>
-                    <p><b>Language:</b> Python 3.10+<br><b>Data Structure:</b> Adjacency List with Min-Priority Queue for O(E log V) performance.</p>
+    <header class="hud">
+        <div class="hud-inner">
+            <div class="brand">
+                <div class="brand-mark"></div>
+                <div class="brand-text">
+                    <div class="brand-title">Smart Cairo</div>
+                    <div class="brand-subtitle">Unified Optimization Framework</div>
                 </div>
             </div>
+            <div class="hud-spacer"></div>
+            <div class="hud-pill" id="activeSlideLabel">Slide 01 / 20</div>
+            <div class="progress" aria-hidden="true"><span id="progressBar"></span></div>
         </div>
-        <div class="footer">Alamein International University | AI Track</div>
-    </div>
-</div>
+    </header>
 
-<!-- SLIDE 5: COMPLEXITY ANALYSIS -->
-<div class="slide">
-    <div class="slide-content">
-        <h2>Complexity Analysis: Routing</h2>
-        <div class="grid-2">
-            <div class="box flex-center" style="border: 2px solid var(--teal);">
-                <div class="highlight-number">O(E log V)</div>
-                <p class="teal" style="font-weight: 700; letter-spacing: 2px; font-size: 14px;">TIME COMPLEXITY</p>
-                <p style="font-size: 14px;">Optimized with Python's heapq module</p>
+    <main class="deck" id="deck">
+        <!-- SLIDE 1 -->
+        <section class="slide" data-title="Title" data-index="1">
+            <div class="slide-content">
+                <div class="title-grid">
+                    <div class="stack">
+                        <div class="slide-kicker">DAA Final Presentation</div>
+                        <h1>Smart Cairo:<br><span>Unified Optimization</span> Framework</h1>
+                        <p style="max-width: 58ch; font-size: 18px;">
+                            Routing analysis and fleet resource management for Cairo using graph theory, shortest-path search,
+                            traffic-aware weighting, greedy signal control, and dynamic programming.
+                        </p>
+                        <div class="pill-row">
+                            <div class="pill"><i class="fa-solid fa-route"></i> A* Search</div>
+                            <div class="pill"><i class="fa-solid fa-diagram-project"></i> Dijkstra</div>
+                            <div class="pill"><i class="fa-solid fa-boxes-stacked"></i> Dynamic Programming</div>
+                            <div class="pill"><i class="fa-solid fa-triangle-exclamation"></i> Emergency Routing</div>
+                        </div>
+                        <div class="hero-stats">
+                            <div class="stat card soft">
+                                <div class="stat-value accent">15</div>
+                                <div class="stat-label">District nodes modeled</div>
+                            </div>
+                            <div class="stat card soft">
+                                <div class="stat-value accent">24</div>
+                                <div class="stat-label">Traffic-flow road links</div>
+                            </div>
+                            <div class="stat card soft">
+                                <div class="stat-value accent">10</div>
+                                <div class="stat-label">Bus routes in planning data</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="hero-visual">
+                        <div class="network card">
+                            <div class="node" data-label="Downtown" style="left: 30%; top: 52%;"></div>
+                            <div class="node" data-label="Nasr City" style="left: 56%; top: 30%;"></div>
+                            <div class="node" data-label="Helwan" style="left: 28%; top: 77%;"></div>
+                            <div class="node" data-label="Giza" style="left: 12%; top: 54%;"></div>
+                            <div class="node" data-label="Airport" style="left: 78%; top: 18%;"></div>
+                            <div class="node" data-label="Ramses Hub" style="left: 44%; top: 43%;"></div>
+                            <div class="edge-line" style="left: 16%; top: 58%; width: 28%; transform: rotate(-8deg);"></div>
+                            <div class="edge-line" style="left: 34%; top: 48%; width: 24%; transform: rotate(18deg);"></div>
+                            <div class="edge-line" style="left: 48%; top: 36%; width: 29%; transform: rotate(-22deg);"></div>
+                            <div class="edge-line" style="left: 28%; top: 69%; width: 31%; transform: rotate(14deg);"></div>
+                        </div>
+                        <div class="title-metrics">
+                            <div class="metric card highlight">
+                                <div class="metric-label">Project focus</div>
+                                <div class="metric-title">Urban mobility optimization</div>
+                                <div class="metric-body">Route planning, emergency response, traffic signaling, and fleet allocation share the same graph model.</div>
+                            </div>
+                            <div class="metric card highlight">
+                                <div class="metric-label">Academic scope</div>
+                                <div class="metric-title">DAA level implementation</div>
+                                <div class="metric-body">Algorithms are implemented in Python with measurable complexity, tests, and simulation outputs.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="section-footer">
+                    <div>Alamein International University | AI Track</div>
+                    <div>01 / 20</div>
+                </div>
             </div>
-            <div>
-                <h3>Theoretical Proof</h3>
-                <ul class="bullet-list">
-                    <li><i class="fa-solid fa-check"></i> <b>Priority Queue:</b> Extract-min in O(log V).</li>
-                    <li><i class="fa-solid fa-check"></i> <b>Relaxation:</b> Each edge E is relaxed at most once.</li>
-                    <li><i class="fa-solid fa-check"></i> <b>Space:</b> O(V + E) for the graph representation.</li>
-                    <li><i class="fa-solid fa-check"></i> <b>Performance:</b> Dramatically faster for large-scale urban grids.</li>
-                </ul>
-            </div>
-        </div>
-        <div class="footer">Alamein International University | AI Track</div>
-    </div>
-</div>
+        </section>
 
-<!-- SLIDE 6: ALGORITHM 2 -->
-<div class="slide">
-    <div class="slide-content">
-        <h2>Algorithm 2: Fleet Resource Allocation</h2>
-        <div class="grid-2">
-            <div class="box">
-                <h3>The Car Calling Problem</h3>
-                <p>Matching passengers to limited vehicles is a <b>Combinatorial Optimization</b> problem. We map this to the <b>0/1 Knapsack Problem</b>.</p>
-                <p>This ensures we maximize the "Value" (passenger coverage) without exceeding "Capacity" (available fleet).</p>
+        <!-- SLIDE 2 -->
+        <section class="slide" data-title="Problem Statement" data-index="2">
+            <div class="slide-content">
+                <div class="slide-head">
+                    <div>
+                        <div class="slide-kicker">01. Problem Statement</div>
+                        <h2>What the city model must solve</h2>
+                    </div>
+                    <div class="glass-strip"><i class="fa-solid fa-city"></i> Cairo transport network</div>
+                </div>
+                <div class="three-col wide-gap">
+                    <div class="card soft"><div class="card-inner">
+                        <h3><i class="fa-solid fa-traffic-light accent"></i> Congestion</h3>
+                        <p>Road weights change by time period, capacity, and road condition. A static shortest path is not enough for realistic routing.</p>
+                    </div></div>
+                    <div class="card soft"><div class="card-inner">
+                        <h3><i class="fa-solid fa-truck-medical accent"></i> Emergency routing</h3>
+                        <p>Ambulance paths must favor faster travel and priority intersections while still finding a valid hospital target.</p>
+                    </div></div>
+                    <div class="card soft"><div class="card-inner">
+                        <h3><i class="fa-solid fa-bus-simple accent"></i> Fleet allocation</h3>
+                        <p>Routes and buses are limited resources, so passenger coverage has to be optimized under capacity constraints.</p>
+                    </div></div>
+                </div>
+                <div class="two-col">
+                    <div class="card"><div class="card-inner">
+                        <h3>Why this matters</h3>
+                        <ul class="bullet-list">
+                            <li><strong>Travel time</strong> must adapt to real traffic profiles rather than distance alone.</li>
+                            <li><strong>Emergency response</strong> needs priority-aware routing and intersection overrides.</li>
+                            <li><strong>Resource planning</strong> must maximize passengers served per available vehicle or trip window.</li>
+                        </ul>
+                    </div></div>
+                    <div class="card"><div class="card-inner">
+                        <h3>Project objective</h3>
+                        <p>Unify routing, traffic, and allocation logic in one modular system so each algorithm solves a specific operational decision on the same transport graph.</p>
+                        <div class="chip-grid" style="margin-top: 14px;">
+                            <div class="chip"><i class="fa-solid fa-sitemap"></i> Graph theory</div>
+                            <div class="chip"><i class="fa-solid fa-shield-heart"></i> Emergency support</div>
+                            <div class="chip"><i class="fa-solid fa-scale-balanced"></i> Global optimization</div>
+                        </div>
+                    </div></div>
+                </div>
+                <div class="section-footer"><div>Problem framed from the processed Cairo transport data</div><div>02 / 20</div></div>
             </div>
-            <div class="image-box">
-                <img src="https://images.unsplash.com/photo-1551288049-bbda48658a7d?w=1280" alt="Knapsack Logic Data Visualization">
-            </div>
-        </div>
-        <div class="footer">Alamein International University | AI Track</div>
-    </div>
-</div>
+        </section>
 
-<!-- SLIDE 7: DP LOGIC -->
-<div class="slide">
-    <div class="slide-content">
-        <h2>Dynamic Programming (DP) Logic</h2>
-        <div>
-            <div class="formula">DP[i, w] = max(DP[i-1, w], Vᵢ + DP[i-1, w-wᵢ])</div>
-            <div class="box">
-                <h3>Optimal Substructure</h3>
-                <p>Implemented in <b>Python</b> using a bottom-up DP table. The system calculates the maximum passenger utility by considering each route-car combination iteratively.</p>
-                <p><b>Complexity:</b> O(N × W) where N is routes and W is total car capacity.</p>
+        <!-- SLIDE 3 -->
+        <section class="slide" data-title="Project Vision" data-index="3">
+            <div class="slide-content">
+                <div class="slide-head">
+                    <div>
+                        <div class="slide-kicker">02. Project Vision</div>
+                        <h2>From raw CSV files to decision support</h2>
+                    </div>
+                    <div class="glass-strip"><i class="fa-solid fa-rocket"></i> Unified optimization</div>
+                </div>
+                <div class="two-col align-center">
+                    <div class="card"><div class="card-inner">
+                        <h3>Vision</h3>
+                        <p>The system transforms district, road, demand, and facility data into routing and allocation decisions that can be evaluated, compared, and extended.</p>
+                        <div class="stack" style="margin-top: 16px;">
+                            <div class="row"><strong>Inputs</strong><span class="muted-small">Districts, roads, traffic, demand, facilities</span></div>
+                            <div class="row"><strong>Core models</strong><span class="muted-small">TransportGraph, Edge, Node, TimePeriod</span></div>
+                            <div class="row"><strong>Outputs</strong><span class="muted-small">Shortest paths, hospital routes, schedules, signal plans</span></div>
+                        </div>
+                    </div></div>
+                    <div class="card highlight"><div class="card-inner">
+                        <h3>What the project actually delivers</h3>
+                        <ul class="bullet-list">
+                            <li><strong>Dijkstra</strong> for baseline shortest-route decisions.</li>
+                            <li><strong>A*</strong> for heuristic-guided routing and emergency paths.</li>
+                            <li><strong>Time-dependent Dijkstra</strong> for traffic-sensitive travel cost.</li>
+                            <li><strong>Prim</strong> for infrastructure planning on road connections.</li>
+                            <li><strong>Greedy signal control</strong> and emergency overrides for intersections.</li>
+                            <li><strong>DP solvers</strong> for allocation and scheduling decisions.</li>
+                        </ul>
+                    </div></div>
+                </div>
+                <div class="section-footer"><div>Supported by tests, services, and simulation modules</div><div>03 / 20</div></div>
             </div>
-        </div>
-        <div class="footer">Alamein International University | AI Track</div>
-    </div>
-</div>
+        </section>
 
-<!-- SLIDE 8: COMPARISON -->
-<div class="slide">
-    <div class="slide-content">
-        <h2>Greedy vs. DP Allocation</h2>
-        <div class="grid-2">
-            <div class="box" style="border-color: #ef4444; background: rgba(239, 68, 68, 0.05);">
-                <h3 style="color: #f87171;"><i class="fa-solid fa-bolt-lightning"></i> Greedy Approach</h3>
-                <p>Fast (O(n log n)) but prone to "local optima". It often misses the most efficient global fleet distribution.</p>
+        <!-- SLIDE 4 -->
+        <section class="slide" data-title="Architecture" data-index="4">
+            <div class="slide-content">
+                <div class="slide-head">
+                    <div>
+                        <div class="slide-kicker">03. System Architecture</div>
+                        <h2>Modular pipeline with shared graph and service layers</h2>
+                    </div>
+                    <div class="glass-strip"><i class="fa-solid fa-cubes"></i> layered design</div>
+                </div>
+                <div class="diagram card">
+                    <div class="card-inner">
+                        <div class="flow">
+                            <div class="flow-step active"><i class="fa-solid fa-database"></i> DataLoader</div>
+                            <div class="flow-step active"><i class="fa-solid fa-diagram-project"></i> GraphBuilder</div>
+                            <div class="flow-step active"><i class="fa-solid fa-route"></i> Routing Engine</div>
+                            <div class="flow-step active"><i class="fa-solid fa-traffic-light"></i> Traffic Service</div>
+                            <div class="flow-step active"><i class="fa-solid fa-bus"></i> Planning Service</div>
+                            <div class="flow-step active"><i class="fa-solid fa-chart-column"></i> Simulation Output</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="two-col">
+                    <div class="card"><div class="card-inner">
+                        <h3>Core layers</h3>
+                        <ul class="bullet-list">
+                            <li><strong>Models:</strong> Node, Edge, TrafficProfile, TimePeriod, LocationType.</li>
+                            <li><strong>Graph:</strong> TransportGraph stores adjacency and node metadata.</li>
+                            <li><strong>Algorithms:</strong> shortest path, MST, greedy, and DP modules.</li>
+                        </ul>
+                    </div></div>
+                    <div class="card"><div class="card-inner">
+                        <h3>Services</h3>
+                        <ul class="bullet-list">
+                            <li><strong>RouteService</strong> selects shortest or time-dependent routing.</li>
+                            <li><strong>EmergencyService</strong> chooses the nearest reachable hospital and runs A*.</li>
+                            <li><strong>TrafficService</strong> builds signal plans and congestion indices.</li>
+                            <li><strong>PlanningService</strong> wraps Prim for expansion planning.</li>
+                        </ul>
+                    </div></div>
+                </div>
+                <div class="section-footer"><div>Same graph interface shared across all algorithms</div><div>04 / 20</div></div>
             </div>
-            <div class="box" style="border-color: var(--teal);">
-                <h3 style="color: var(--accent);"><i class="fa-solid fa-brain"></i> Dynamic Programming</h3>
-                <p>Guarantees global optimality. Our simulation shows a **significant increase** in total passenger coverage compared to greedy matching.</p>
-            </div>
-        </div>
-        <div class="footer">Alamein International University | AI Track</div>
-    </div>
-</div>
+        </section>
 
-<!-- SLIDE 9: SYSTEM DESIGN -->
-<div class="slide">
-    <div class="slide-content">
-        <h2>System Design: Technical Stack</h2>
-        <div class="grid-2">
-            <div class="box">
-                <h3>Backend & Core</h3>
-                <p>The system is built with <b>Python</b>, utilizing Pandas for data processing and a custom routing engine.</p>
-                <ul class="bullet-list">
-                    <li><i class="fa-brands fa-python"></i> Python-based Algorithms.</li>
-                    <li><i class="fa-solid fa-database"></i> SQL for spatial data management.</li>
-                </ul>
+        <!-- SLIDE 5 -->
+        <section class="slide" data-title="Graph Representation" data-index="5">
+            <div class="slide-content">
+                <div class="slide-head">
+                    <div>
+                        <div class="slide-kicker">04. Graph Representation</div>
+                        <h2>TransportGraph with directed weighted edges</h2>
+                    </div>
+                    <div class="glass-strip"><i class="fa-solid fa-shapes"></i> G(V, E)</div>
+                </div>
+                <div class="two-col align-center">
+                    <div class="card"><div class="card-inner">
+                        <div class="diagram-label"><i class="fa-solid fa-circle-nodes"></i> Node model</div>
+                        <p>Each node stores an ID, name, location type, coordinates, population, and adjacency references. The graph supports both district and facility nodes.</p>
+                        <div class="chip-grid" style="margin-top: 14px;">
+                            <div class="chip">Node(id, name, type, x, y)</div>
+                            <div class="chip">District + Facility</div>
+                            <div class="chip">Population metadata</div>
+                        </div>
+                    </div></div>
+                    <div class="card"><div class="card-inner">
+                        <div class="diagram-label"><i class="fa-solid fa-diagram-project"></i> Edge model</div>
+                        <p>Edges store distance, capacity, road condition, and a traffic profile for morning, afternoon, evening, and night flows.</p>
+                        <div class="chip-grid" style="margin-top: 14px;">
+                            <div class="chip">Directed edge</div>
+                            <div class="chip">Distance(km)</div>
+                            <div class="chip">Capacity vehicles/hour</div>
+                            <div class="chip">Condition 1-10</div>
+                        </div>
+                    </div></div>
+                </div>
+                <div class="three-col">
+                    <div class="metric card"><div class="card-inner">
+                        <div class="metric-label">District nodes</div>
+                        <div class="big-number accent">15</div>
+                        <div class="metric-body">Maadi, Nasr City, Downtown Cairo, Helwan, Giza, and other districts in the processed dataset.</div>
+                    </div></div>
+                    <div class="metric card"><div class="card-inner">
+                        <div class="metric-label">Medical and transit facilities</div>
+                        <div class="big-number accent">10</div>
+                        <div class="metric-body">Airports, hospitals, university nodes, rail hubs, and business anchors are represented as facility nodes.</div>
+                    </div></div>
+                    <div class="metric card"><div class="card-inner">
+                        <div class="metric-label">Road links</div>
+                        <div class="big-number accent">24+</div>
+                        <div class="metric-body">Road geometry and traffic data are merged into a weighted transport graph for simulation and routing.</div>
+                    </div></div>
+                </div>
+                <div class="section-footer"><div>Graph structure is read from processed CSVs and turned into objects</div><div>05 / 20</div></div>
             </div>
-            <div class="box">
-                <h3>Frontend & Integration</h3>
-                <ul class="bullet-list">
-                    <li><i class="fa-brands fa-html5"></i> Modern HTML/CSS Dashboard.</li>
-                    <li><i class="fa-brands fa-git-alt"></i> Git for version control.</li>
-                    <li><i class="fa-solid fa-vial"></i> Pytest for automated CI/CD.</li>
-                </ul>
-            </div>
-        </div>
-        <div class="footer">Alamein International University | AI Track</div>
-    </div>
-</div>
+        </section>
 
-<!-- SLIDE 10: TECHNICAL EXPERTISE -->
-<div class="slide">
-    <div class="slide-content">
-        <h2>Technical Expertise & Skills</h2>
-        <div class="grid-2">
-            <div class="box">
-                <h3>Core Languages</h3>
-                <ul class="bullet-list">
-                    <li><i class="fa-brands fa-python"></i> <b>Python:</b> Logic implementation & simulation.</li>
-                    <li><i class="fa-brands fa-java"></i> <b>Java:</b> High-performance data structures.</li>
-                </ul>
+        <!-- SLIDE 6 -->
+        <section class="slide" data-title="Dataset" data-index="6">
+            <div class="slide-content">
+                <div class="slide-head">
+                    <div>
+                        <div class="slide-kicker">05. Dataset and Cairo Modeling</div>
+                        <h2>Concrete dataset footprint from the repository</h2>
+                    </div>
+                    <div class="glass-strip"><i class="fa-solid fa-folder-tree"></i> processed data</div>
+                </div>
+                <div class="two-col">
+                    <div class="card"><div class="card-inner">
+                        <h3>Processed inputs</h3>
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr><th>File</th><th>Role</th><th>Scale</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td>neighborhoods_districts.csv</td><td>District nodes and coordinates</td><td>15 rows</td></tr>
+                                    <tr><td>existing_roads.csv</td><td>Road distance and capacity</td><td>24+ links</td></tr>
+                                    <tr><td>traffic_flow.csv</td><td>Time-period traffic volumes</td><td>24 links</td></tr>
+                                    <tr><td>transport_demand.csv</td><td>OD passenger demand</td><td>17 pairs</td></tr>
+                                    <tr><td>bus_routes.csv</td><td>Fleet allocation input</td><td>10 routes</td></tr>
+                                    <tr><td>metro_lines.csv</td><td>Transit infrastructure</td><td>3 lines</td></tr>
+                                    <tr><td>facilities.csv</td><td>Hospitals, airport, hubs</td><td>10 facilities</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div></div>
+                    <div class="card"><div class="card-inner">
+                        <h3>Cairo map modeling</h3>
+                        <ul class="bullet-list">
+                            <li><strong>Coordinates:</strong> nodes are positioned using real x-y geographic coordinates from the processed data.</li>
+                            <li><strong>Demand centers:</strong> hospitals, airport, university, railway station, and commercial hubs act as target points.</li>
+                            <li><strong>Traffic periods:</strong> Morning Peak, Afternoon, Evening Peak, and Night are encoded in TimePeriod.</li>
+                            <li><strong>Road realism:</strong> travel cost depends on distance, condition, and flow-capacity balance.</li>
+                        </ul>
+                        <div class="note" style="margin-top: 14px;">
+                            Dataset sources are aligned with the repository's processed CSV files and the supplied project data PDF.
+                        </div>
+                    </div></div>
+                </div>
+                <div class="section-footer"><div>Counts are taken from the checked-in processed files</div><div>06 / 20</div></div>
             </div>
-            <div class="box">
-                <h3>Tools & Infrastructure</h3>
-                <ul class="bullet-list">
-                    <li><i class="fa-solid fa-database"></i> <b>SQL:</b> Relational data modeling.</li>
-                    <li><i class="fa-brands fa-git-alt"></i> <b>Git:</b> Collaborative development.</li>
-                </ul>
+        </section>
+
+        <!-- SLIDE 7 -->
+        <section class="slide" data-title="Dijkstra" data-index="7">
+            <div class="slide-content">
+                <div class="slide-head">
+                    <div>
+                        <div class="slide-kicker">06. Dijkstra Algorithm</div>
+                        <h2>Baseline shortest-path engine for static routing</h2>
+                    </div>
+                    <div class="glass-strip"><i class="fa-solid fa-diagram-project"></i> shortest path</div>
+                </div>
+                <div class="two-col align-center">
+                    <div class="card"><div class="card-inner">
+                        <div class="formula">dist[v] = min(dist[v], dist[u] + w(u, v))</div>
+                        <ul class="bullet-list" style="margin-top: 16px;">
+                            <li><strong>Definition:</strong> finds the least-cost path from one source to one destination on a non-negative weighted graph.</li>
+                            <li><strong>Why used:</strong> provides the baseline route in the service layer and a fair comparison point for A*.</li>
+                            <li><strong>Role in project:</strong> RouteService uses Dijkstra for the standard shortest route mode.</li>
+                            <li><strong>Complexity:</strong> <span class="mono">O(E log V)</span> time and <span class="mono">O(V)</span> space in the implementation metadata.</li>
+                        </ul>
+                    </div></div>
+                    <div class="card highlight"><div class="card-inner">
+                        <h3>Implementation details</h3>
+                        <ul class="bullet-list">
+                            <li>Uses a priority queue from <strong>heapq</strong>.</li>
+                            <li>Tracks explored nodes with <strong>nodes_explored</strong>.</li>
+                            <li>Consumes the shared <strong>CostEvaluator</strong> for edge weights.</li>
+                            <li>Reconstructs the final path from the predecessor map.</li>
+                        </ul>
+                        <div class="note" style="margin-top: 14px;">
+                            In benchmark mode the shared cost evaluator can keep the comparison fair by using static road distance.
+                        </div>
+                    </div></div>
+                </div>
+                <div class="section-footer"><div>Source: Backend/algorithms/shortest_path/dijkstra.py</div><div>07 / 20</div></div>
             </div>
-        </div>
-        <div class="footer">Alamein International University | AI Track</div>
-    </div>
-</div>
+        </section>
 
-<!-- SLIDE 11: BENCHMARKS -->
-<div class="slide">
-    <div class="slide-content">
-        <h2>Search Algorithm Benchmarks</h2>
-        <div class="box">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Algorithm</th>
-                        <th>Node Expansion</th>
-                        <th>Latency (ms)</th>
-                        <th>Optimality</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>Dijkstra</td>
-                        <td class="node-count">450 Nodes</td>
-                        <td>85ms</td>
-                        <td>100%</td>
-                    </tr>
-                    <tr>
-                        <td style="color: var(--accent); font-weight: bold;">A* Search (Standard)</td>
-                        <td class="teal node-count">125 Nodes</td>
-                        <td class="teal">18ms</td>
-                        <td>100%</td>
-                    </tr>
-                    <tr>
-                        <td style="color: var(--accent); font-weight: bold;">Adaptive A*</td>
-                        <td class="teal node-count">110 Nodes</td>
-                        <td class="teal">16ms</td>
-                        <td>100%</td>
-                    </tr>
-                </tbody>
-            </table>
-            <p style="margin-top: 15px; font-size: 14px; text-align: center;">* Simulated on Cairo grid with real neighborhood data.</p>
-        </div>
-        <div class="footer">Alamein International University | AI Track</div>
-    </div>
-</div>
-
-<!-- SLIDE 12: CONCLUSION & FUTURE WORK -->
-<div class="slide">
-    <div class="slide-content">
-        <h2>Project Impact & Scalability</h2>
-        <div class="grid-2">
-            <div class="box">
-                <h3>Validated Impact</h3>
-                <p>The framework successfully reduces average response time by <b>12%</b> in simulated Cairo emergency scenarios.</p>
+        <!-- SLIDE 8 -->
+        <section class="slide" data-title="A* Search" data-index="8">
+            <div class="slide-content">
+                <div class="slide-head">
+                    <div>
+                        <div class="slide-kicker">07. A* Search Algorithm</div>
+                        <h2>Heuristic-guided routing for faster emergency decisions</h2>
+                    </div>
+                    <div class="glass-strip"><i class="fa-solid fa-location-crosshairs"></i> heuristic search</div>
+                </div>
+                <div class="two-col align-center">
+                    <div class="card"><div class="card-inner">
+                        <div class="formula">f(n) = g(n) + h(n)</div>
+                        <ul class="bullet-list" style="margin-top: 16px;">
+                            <li><strong>Definition:</strong> balances the cost so far with a heuristic estimate to the nearest goal.</li>
+                            <li><strong>Heuristic used:</strong> Euclidean distance to the closest goal position, scaled to stay admissible when priority discounts are present.</li>
+                            <li><strong>Role in project:</strong> used by EmergencyService to route toward the nearest reachable medical facility.</li>
+                            <li><strong>Complexity:</strong> <span class="mono">O(E log V)</span> time and <span class="mono">O(V)</span> space in the implementation metadata.</li>
+                        </ul>
+                    </div></div>
+                    <div class="card highlight"><div class="card-inner">
+                        <h3>What the code tracks</h3>
+                        <ul class="bullet-list">
+                            <li><strong>Goal positions:</strong> the graph stores facility coordinates for multi-goal routing.</li>
+                            <li><strong>nodes_explored:</strong> explicit counter used in testing and evaluation.</li>
+                            <li><strong>Time awareness:</strong> optional initial time feeds the shared cost evaluator.</li>
+                            <li><strong>Emergency support:</strong> base emergency multiplier plus intersection priority scaling.</li>
+                        </ul>
+                        <div class="note" style="margin-top: 14px;">
+                            The heuristic is not a generic guess: it is the minimum Euclidean distance to any valid goal in the graph.
+                        </div>
+                    </div></div>
+                </div>
+                <div class="section-footer"><div>Source: Backend/algorithms/shortest_path/astar.py</div><div>08 / 20</div></div>
             </div>
-            <div class="box">
-                <h3>Scalability</h3>
-                <ul class="bullet-list">
-                    <li><i class="fa-solid fa-expand"></i> Support for 1000+ district nodes.</li>
-                    <li><i class="fa-solid fa-bolt"></i> Real-time traffic weight updates.</li>
-                    <li><i class="fa-solid fa-code-fork"></i> Extendable for multi-modal transit.</li>
-                </ul>
+        </section>
+
+        <!-- SLIDE 9 -->
+        <section class="slide" data-title="Complexity" data-index="9">
+            <div class="slide-content">
+                <div class="slide-head">
+                    <div>
+                        <div class="slide-kicker">08. Complexity Analysis</div>
+                        <h2>As implemented in the repository</h2>
+                    </div>
+                    <div class="glass-strip"><i class="fa-solid fa-scale-balanced"></i> asymptotic view</div>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Module</th>
+                                <th>Time complexity</th>
+                                <th>Space complexity</th>
+                                <th>Academic role</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Dijkstra</td><td class="mono">O(E log V)</td><td class="mono">O(V)</td><td>Baseline shortest route</td></tr>
+                            <tr><td>A*</td><td class="mono">O(E log V)</td><td class="mono">O(V)</td><td>Heuristic-guided route search</td></tr>
+                            <tr><td>Time-dependent Dijkstra</td><td class="mono">O(E log V)</td><td class="mono">O(V)</td><td>Traffic-sensitive routing</td></tr>
+                            <tr><td>Prim</td><td class="mono">O(E log V)</td><td class="mono">O(V + E)</td><td>Infrastructure expansion planning</td></tr>
+                            <tr><td>ResourceAllocationDP</td><td class="mono">O(n * capacity)</td><td class="mono">O(n * capacity)</td><td>0/1 knapsack allocation</td></tr>
+                            <tr><td>SchedulingDP</td><td class="mono">O(n log n)</td><td class="mono">O(n)</td><td>Weighted interval scheduling</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="two-col">
+                    <div class="metric card"><div class="card-inner">
+                        <div class="metric-label">Key correction</div>
+                        <div class="metric-title">SchedulingDP is not knapsack</div>
+                        <div class="metric-body">The implemented scheduling solver sorts intervals, uses binary search for compatibility, and performs weighted interval DP.</div>
+                    </div></div>
+                    <div class="metric card"><div class="card-inner">
+                        <div class="metric-label">Key correction</div>
+                        <div class="metric-title">Dijkstra and A* share the same graph interface</div>
+                        <div class="metric-body">The difference is the search strategy and heuristic guidance, not the data source or node model.</div>
+                    </div></div>
+                </div>
+                <div class="section-footer"><div>Complexities taken from algorithm metadata and implementation structure</div><div>09 / 20</div></div>
             </div>
-        </div>
-        <div class="footer">Alamein International University | AI Track</div>
-    </div>
-</div>
+        </section>
 
-<!-- SLIDE 13: THANK YOU -->
-<div class="slide">
-    <div class="slide-content">
-        <div class="flex-center" style="width: 100%; flex-grow: 1;">
-            <h1 class="teal" style="font-size: 100px; margin-bottom: 10px;">Thank You</h1>
-            <p class="white" style="font-size: 28px; font-weight: 300;">CairoGrid-Optimizer | Final DAA Project</p>
-            <div style="height: 2px; width: 250px; background: rgba(255,255,255,0.1); margin: 30px 0;"></div>
-            <p style="letter-spacing: 2px; text-transform: uppercase; font-weight: 600; color: var(--teal);">Q&A Session</p>
-            <div style="color: #64748b; font-size: 14px; margin-top: 40px;">Basmala ELkady & Team | Alamein International University | 2026</div>
-        </div>
-        <div class="footer">Alamein International University | AI Track</div>
-    </div>
-</div>
+        <!-- SLIDE 10 -->
+        <section class="slide" data-title="Dynamic Weights" data-index="10">
+            <div class="slide-content">
+                <div class="slide-head">
+                    <div>
+                        <div class="slide-kicker">09. Dynamic Traffic Weight Logic</div>
+                        <h2>How the system turns traffic data into route cost</h2>
+                    </div>
+                    <div class="glass-strip"><i class="fa-solid fa-wave-square"></i> dynamic cost model</div>
+                </div>
+                <div class="two-col align-center">
+                    <div class="card"><div class="card-inner">
+                        <div class="formula small">w(u,v,t) = d(u,v) * (1 + (flow/capacity)^2) * (11/condition)</div>
+                        <div class="formula small" style="margin-top: 12px;">cost = base_weight * emergency_multiplier * congestion_index</div>
+                        <ul class="bullet-list" style="margin-top: 16px;">
+                            <li><strong>Time periods:</strong> morning peak, afternoon, evening peak, and night are mapped from clock time.</li>
+                            <li><strong>Condition effect:</strong> a lower road-condition score increases travel cost.</li>
+                            <li><strong>Congestion effect:</strong> flow is normalized by capacity and squared to amplify heavy congestion.</li>
+                            <li><strong>Emergency effect:</strong> default global multiplier is 0.8, with stronger intersection discounts via IntersectionPriority.</li>
+                        </ul>
+                    </div></div>
+                    <div class="card highlight"><div class="card-inner">
+                        <h3>Why this is academically important</h3>
+                        <ul class="bullet-list">
+                            <li><strong>Realism:</strong> dynamic weights reflect road condition and traffic variation instead of fixed distances.</li>
+                            <li><strong>Fair comparisons:</strong> the shared evaluator can switch between benchmark and realistic modes.</li>
+                            <li><strong>Emergency routing:</strong> the same framework can prioritize ambulance travel without rewriting the graph.</li>
+                        </ul>
+                        <div class="note" style="margin-top: 14px;">
+                            This is the actual cost logic used by Edge.get_weight() and CostEvaluator.edge_weight().
+                        </div>
+                    </div></div>
+                </div>
+                <div class="section-footer"><div>Time-aware costs are central to the routing model</div><div>10 / 20</div></div>
+            </div>
+        </section>
 
+        <!-- SLIDE 11 -->
+        <section class="slide" data-title="Fleet Allocation" data-index="11">
+            <div class="slide-content">
+                <div class="slide-head">
+                    <div>
+                        <div class="slide-kicker">10. Fleet Allocation Problem</div>
+                        <h2>Passenger coverage under limited vehicle capacity</h2>
+                    </div>
+                    <div class="glass-strip"><i class="fa-solid fa-bus-simple"></i> resource planning</div>
+                </div>
+                <div class="two-col align-center">
+                    <div class="card"><div class="card-inner">
+                        <h3>Problem formulation</h3>
+                        <p>The repository models route allocation as a capacity-constrained optimization problem. Each route or trip has a weight and a passenger value, and the goal is to maximize total passengers covered.</p>
+                        <div class="chip-grid" style="margin-top: 14px;">
+                            <div class="chip">Weight = buses</div>
+                            <div class="chip">Value = passengers</div>
+                            <div class="chip">Capacity = fleet limit</div>
+                        </div>
+                        <ul class="bullet-list" style="margin-top: 16px;">
+                            <li><strong>ResourceAllocationDP</strong> uses a classic 0/1 knapsack structure.</li>
+                            <li><strong>SchedulingDP</strong> handles time-compatible trip selection separately.</li>
+                            <li><strong>TransitService</strong> combines allocation and scheduling outputs for transit planning.</li>
+                        </ul>
+                    </div></div>
+                    <div class="card highlight"><div class="card-inner">
+                        <h3>Real input examples</h3>
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr><th>Route</th><th>Buses</th><th>Passengers</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td>B1</td><td class="mono">25</td><td class="mono">35000</td></tr>
+                                    <tr><td>B2</td><td class="mono">30</td><td class="mono">42000</td></tr>
+                                    <tr><td>B9</td><td class="mono">28</td><td class="mono">39000</td></tr>
+                                    <tr><td>B10</td><td class="mono">20</td><td class="mono">28000</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="note" style="margin-top: 14px;">
+                            These are repository dataset values from bus_routes.csv, so no fabricated allocation numbers are needed.
+                        </div>
+                    </div></div>
+                </div>
+                <div class="section-footer"><div>Fleet planning uses the demand and bus-route processed files</div><div>11 / 20</div></div>
+            </div>
+        </section>
+
+        <!-- SLIDE 12 -->
+        <section class="slide" data-title="Knapsack" data-index="12">
+            <div class="slide-content">
+                <div class="slide-head">
+                    <div>
+                        <div class="slide-kicker">11. 0/1 Knapsack Solution</div>
+                        <h2>Exact DP for route selection and fleet usage</h2>
+                    </div>
+                    <div class="glass-strip"><i class="fa-solid fa-square-root-variable"></i> exact optimization</div>
+                </div>
+                <div class="two-col align-center">
+                    <div class="card"><div class="card-inner">
+                        <div class="formula">DP[i,w] = max(DP[i-1,w], v_i + DP[i-1,w-w_i])</div>
+                        <ul class="bullet-list" style="margin-top: 16px;">
+                            <li><strong>Definition:</strong> choose each route at most once while respecting total capacity.</li>
+                            <li><strong>Why used:</strong> greedy selection can miss the global optimum when passenger value and bus usage conflict.</li>
+                            <li><strong>Implementation role:</strong> ResourceAllocationDP builds a 2D DP table and reconstructs the chosen routes.</li>
+                            <li><strong>Complexity:</strong> <span class="mono">O(n * capacity)</span> time and space in the current implementation.</li>
+                        </ul>
+                    </div></div>
+                    <div class="card highlight"><div class="card-inner">
+                        <h3>What the code actually stores</h3>
+                        <ul class="bullet-list">
+                            <li><strong>weights:</strong> bus counts per route, clamped to at least 1.</li>
+                            <li><strong>values:</strong> passenger demand per route.</li>
+                            <li><strong>dp table:</strong> rows are items, columns are capacity states.</li>
+                            <li><strong>output:</strong> selected routes, total passengers covered, and a schedule dictionary.</li>
+                        </ul>
+                    </div></div>
+                </div>
+                <div class="section-footer"><div>Source: Backend/algorithms/dp/resource_allocation.py</div><div>12 / 20</div></div>
+            </div>
+        </section>
+
+        <!-- SLIDE 13 -->
+        <section class="slide" data-title="DP Table" data-index="13">
+            <div class="slide-content">
+                <div class="slide-head">
+                    <div>
+                        <div class="slide-kicker">12. Dynamic Programming Table Logic</div>
+                        <h2>SchedulingDP is weighted interval scheduling</h2>
+                    </div>
+                    <div class="glass-strip"><i class="fa-solid fa-table-cells-large"></i> compatibility DP</div>
+                </div>
+                <div class="two-col align-center">
+                    <div class="card"><div class="card-inner">
+                        <div class="formula">dp[i] = max(value_i + dp[p(i)], dp[i-1])</div>
+                        <ul class="bullet-list" style="margin-top: 16px;">
+                            <li><strong>Correction:</strong> the current implementation is not knapsack; it schedules non-overlapping trips.</li>
+                            <li><strong>Workflow:</strong> parse times, create intervals, sort by finish time, binary-search the last compatible trip.</li>
+                            <li><strong>Role in project:</strong> selects the best passenger-heavy trip subset without overlap.</li>
+                            <li><strong>Complexity:</strong> <span class="mono">O(n log n)</span> time and <span class="mono">O(n)</span> space.</li>
+                        </ul>
+                    </div></div>
+                    <div class="card highlight"><div class="card-inner">
+                        <h3>Why this matters</h3>
+                        <ul class="bullet-list">
+                            <li>It respects time compatibility instead of treating trips as independent items.</li>
+                            <li>Binary search keeps compatibility lookup efficient.</li>
+                            <li>Backtracking reconstructs the final schedule in route-by-route form.</li>
+                        </ul>
+                        <div class="note" style="margin-top: 14px;">
+                            This correction is important for academic accuracy because the file name can mislead readers.
+                        </div>
+                    </div></div>
+                </div>
+                <div class="section-footer"><div>Source: Backend/algorithms/dp/scheduling.py</div><div>13 / 20</div></div>
+            </div>
+        </section>
+
+        <!-- SLIDE 14 -->
+        <section class="slide" data-title="Greedy vs DP" data-index="14">
+            <div class="slide-content">
+                <div class="slide-head">
+                    <div>
+                        <div class="slide-kicker">13. Greedy vs DP Comparison</div>
+                        <h2>Speed of local choice versus global optimality</h2>
+                    </div>
+                    <div class="glass-strip"><i class="fa-solid fa-arrow-trend-up"></i> decision quality</div>
+                </div>
+                <div class="comparison-grid">
+                    <div class="comparison-card greedy">
+                        <div class="slide-kicker" style="margin-bottom: 8px; color: var(--red);">Greedy</div>
+                        <h3>Traffic signal optimizer</h3>
+                        <p>Chooses the busiest incoming road at each intersection and assigns it the longest green phase. It is fast and suitable for live control.</p>
+                        <ul class="bullet-list" style="margin-top: 12px;">
+                            <li>Local maximum by incoming flow.</li>
+                            <li>Used for real-time signal plans.</li>
+                            <li>Can miss a globally optimal citywide schedule.</li>
+                        </ul>
+                    </div>
+                    <div class="comparison-card dp">
+                        <div class="slide-kicker" style="margin-bottom: 8px; color: var(--teal-2);">Dynamic programming</div>
+                        <h3>Resource allocation and scheduling</h3>
+                        <p>Evaluates combinations or compatible intervals to maximize passenger coverage. It is slower, but the result is provably optimal for the model.</p>
+                        <ul class="bullet-list" style="margin-top: 12px;">
+                            <li>Global optimum under constraints.</li>
+                            <li>Best for planning and allocation.</li>
+                            <li>Matches the academic objective of exact optimization.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="two-col" style="margin-top: 4px;">
+                    <div class="card"><div class="card-inner">
+                        <h3>Best use case</h3>
+                        <p>Greedy is the right fit for immediate traffic-light response, while DP is the right fit for offline planning when a full search is acceptable.</p>
+                    </div></div>
+                    <div class="card"><div class="card-inner">
+                        <h3>Project takeaway</h3>
+                        <p>The repository intentionally uses both approaches because the city problem contains both fast operational decisions and exact planning decisions.</p>
+                    </div></div>
+                </div>
+                <div class="section-footer"><div>Different subproblems need different optimization styles</div><div>14 / 20</div></div>
+            </div>
+        </section>
+
+        <!-- SLIDE 15 -->
+        <section class="slide" data-title="Implementation" data-index="15">
+            <div class="slide-content">
+                <div class="slide-head">
+                    <div>
+                        <div class="slide-kicker">14. System Implementation</div>
+                        <h2>Actual workflow from files to outputs</h2>
+                    </div>
+                    <div class="glass-strip"><i class="fa-solid fa-gears"></i> execution flow</div>
+                </div>
+                <div class="timeline">
+                    <div class="metric card"><div class="card-inner">
+                        <div class="metric-label">Step 1</div>
+                        <div class="metric-title">Load processed CSVs</div>
+                        <div class="metric-body">DataLoader normalizes IDs, merges road and traffic data, and creates Node and Edge objects.</div>
+                    </div></div>
+                    <div class="metric card"><div class="card-inner">
+                        <div class="metric-label">Step 2</div>
+                        <div class="metric-title">Build TransportGraph</div>
+                        <div class="metric-body">GraphBuilder creates the shared adjacency structure used by routing and planning modules.</div>
+                    </div></div>
+                    <div class="metric card"><div class="card-inner">
+                        <div class="metric-label">Step 3</div>
+                        <div class="metric-title">Run services</div>
+                        <div class="metric-body">RouteService, TrafficService, PlanningService, and EmergencyService invoke the right algorithm for the task.</div>
+                    </div></div>
+                    <div class="metric card"><div class="card-inner">
+                        <div class="metric-label">Step 4</div>
+                        <div class="metric-title">Simulate and report</div>
+                        <div class="metric-body">Simulation scripts export markdown summaries, CSV results, and plots for comparison.</div>
+                    </div></div>
+                </div>
+                <div class="small-grid">
+                    <div class="card"><div class="card-inner">
+                        <h3>Core files in the workflow</h3>
+                        <div class="tag-row">
+                            <div class="tag">Backend/utils/data_loader.py</div>
+                            <div class="tag">Backend/graph/graph_builder.py</div>
+                            <div class="tag">Backend/services/route_service.py</div>
+                            <div class="tag">Backend/services/emergency_service.py</div>
+                        </div>
+                    </div></div>
+                    <div class="card"><div class="card-inner">
+                        <h3>Supporting modules</h3>
+                        <div class="tag-row">
+                            <div class="tag">TrafficService</div>
+                            <div class="tag">PlanningService</div>
+                            <div class="tag">Performance evaluation</div>
+                            <div class="tag">Simulation outputs</div>
+                        </div>
+                    </div></div>
+                </div>
+                <div class="section-footer"><div>Implementation is service-oriented and testable</div><div>15 / 20</div></div>
+            </div>
+        </section>
+
+        <!-- SLIDE 16 -->
+        <section class="slide" data-title="Technologies" data-index="16">
+            <div class="slide-content">
+                <div class="slide-head">
+                    <div>
+                        <div class="slide-kicker">15. Technologies Used</div>
+                        <h2>Actual stack used in the repository</h2>
+                    </div>
+                    <div class="glass-strip"><i class="fa-solid fa-layer-group"></i> tools and libraries</div>
+                </div>
+                <div class="three-col">
+                    <div class="card"><div class="card-inner">
+                        <h3>Core language</h3>
+                        <ul class="bullet-list">
+                            <li><strong>Python</strong> for algorithms, services, models, and simulation.</li>
+                            <li><strong>HTML/CSS/JS</strong> for presentation and the frontend shell.</li>
+                        </ul>
+                    </div></div>
+                    <div class="card"><div class="card-inner">
+                        <h3>Data and ML</h3>
+                        <ul class="bullet-list">
+                            <li><strong>Pandas</strong> for CSV loading and preprocessing.</li>
+                            <li><strong>NumPy</strong>, <strong>scikit-learn</strong>, and <strong>joblib</strong> in the traffic forecasting service.</li>
+                        </ul>
+                    </div></div>
+                    <div class="card"><div class="card-inner">
+                        <h3>Analysis and testing</h3>
+                        <ul class="bullet-list">
+                            <li><strong>Pytest</strong> for unit and integration tests.</li>
+                            <li><strong>Matplotlib</strong> for analysis plots and report generation.</li>
+                        </ul>
+                    </div></div>
+                </div>
+                <div class="two-col">
+                    <div class="metric card"><div class="card-inner">
+                        <div class="metric-label">Important clarification</div>
+                        <div class="metric-title">Traffic ML is forecasting, not a neural network claim</div>
+                        <div class="metric-body">The service uses GradientBoostingRegressor with preprocessing, so the deck should not claim a deep-learning model.</div>
+                    </div></div>
+                    <div class="metric card"><div class="card-inner">
+                        <div class="metric-label">Frontend stack</div>
+                        <div class="metric-title">Modern visual presentation</div>
+                        <div class="metric-body">The presentation itself uses a dark futuristic theme, glassmorphism, gradient accents, and responsive layout rules.</div>
+                    </div></div>
+                </div>
+                <div class="section-footer"><div>Technologies are taken from requirements.txt and source imports</div><div>16 / 20</div></div>
+            </div>
+        </section>
+
+        <!-- SLIDE 17 -->
+        <section class="slide" data-title="Benchmark Results" data-index="17">
+            <div class="slide-content">
+                <div class="slide-head">
+                    <div>
+                        <div class="slide-kicker">16. Benchmark Results and Validation</div>
+                        <h2>Use only validated artifacts from the repository</h2>
+                    </div>
+                    <div class="glass-strip"><i class="fa-solid fa-vial"></i> verified outputs</div>
+                </div>
+                <div class="results-grid">
+                    <div class="results-card placeholder">
+                        <h3>Routing benchmark</h3>
+                        <p class="muted-small">Add Real Benchmark Here</p>
+                        <ul class="bullet-list" style="margin-top: 12px;">
+                            <li>Use the latest A* vs Dijkstra runtime chart from performance evaluation.</li>
+                            <li>Do not present the checked-in CSV snapshot without regeneration because it conflicts with the analysis markdown.</li>
+                        </ul>
+                    </div>
+                    <div class="results-card">
+                        <h3>Validation from tests</h3>
+                        <ul class="bullet-list">
+                            <li><strong>A* and Dijkstra</strong> are asserted to return the same optimal cost on the synthetic test graph.</li>
+                            <li><strong>A* nodes explored</strong> are expected to be less than or equal to Dijkstra in the test fixture.</li>
+                            <li><strong>ResourceAllocationDP</strong> test cases verify optimal passenger coverage on sample inputs.</li>
+                        </ul>
+                    </div>
+                    <div class="results-card placeholder">
+                        <h3>Emergency routing analysis</h3>
+                        <p class="muted-small">Add Real Benchmark Here</p>
+                        <ul class="bullet-list" style="margin-top: 12px;">
+                            <li>analysis_report.md currently exists, but its numbers do not match the current CSV snapshot.</li>
+                            <li>Regenerate the report from fresh simulation outputs before the final defense.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="note danger" style="margin-top: 4px;">
+                    Repository note: the checked-in response_time_comparison.csv currently shows zero reduction across rows, while analysis_report.md reports average and median reductions. Treat the report as stale until rerun.
+                </div>
+                <div class="section-footer"><div>Validation is real; some benchmark outputs need regeneration</div><div>17 / 20</div></div>
+            </div>
+        </section>
+
+        <!-- SLIDE 18 -->
+        <section class="slide" data-title="Scalability" data-index="18">
+            <div class="slide-content">
+                <div class="slide-head">
+                    <div>
+                        <div class="slide-kicker">17. Scalability and Optimization</div>
+                        <h2>How the system can grow without changing the core model</h2>
+                    </div>
+                    <div class="glass-strip"><i class="fa-solid fa-expand"></i> future-ready architecture</div>
+                </div>
+                <div class="three-col">
+                    <div class="card"><div class="card-inner">
+                        <h3>More districts</h3>
+                        <p>GraphBuilder and TransportGraph can scale to larger node sets as long as the processed CSVs are expanded consistently.</p>
+                    </div></div>
+                    <div class="card"><div class="card-inner">
+                        <h3>Better traffic intelligence</h3>
+                        <p>TrafficMLService can be used to forecast next-flow values, then feed calibrated congestion inputs into the cost evaluator.</p>
+                    </div></div>
+                    <div class="card"><div class="card-inner">
+                        <h3>Modular extensions</h3>
+                        <p>Additional routing policies or transit modes can be added without rewriting the graph layer or model classes.</p>
+                    </div></div>
+                </div>
+                <div class="two-col">
+                    <div class="card"><div class="card-inner">
+                        <h3>Optimization directions</h3>
+                        <ul class="bullet-list">
+                            <li>Cache repeated route queries for common origin-destination pairs.</li>
+                            <li>Precompute or index critical hospitals and hubs for faster emergency lookup.</li>
+                            <li>Calibrate dynamic weights against updated traffic observations.</li>
+                        </ul>
+                    </div></div>
+                    <div class="card"><div class="card-inner">
+                        <h3>Algorithmic extensions</h3>
+                        <ul class="bullet-list">
+                            <li>Add multi-objective routing with safety or emissions as extra cost terms.</li>
+                            <li>Expand planning to larger MST or network-design scenarios.</li>
+                            <li>Integrate the simulation outputs into a live dashboard.</li>
+                        </ul>
+                    </div></div>
+                </div>
+                <div class="section-footer"><div>Modular design keeps future work realistic</div><div>18 / 20</div></div>
+            </div>
+        </section>
+
+        <!-- SLIDE 19 -->
+        <section class="slide" data-title="Team" data-index="19">
+            <div class="slide-content">
+                <div class="slide-head">
+                    <div>
+                        <div class="slide-kicker">18. Team and Credits</div>
+                        <h2>Project contributors extracted from the repository</h2>
+                    </div>
+                    <div class="glass-strip"><i class="fa-solid fa-people-group"></i> credits</div>
+                </div>
+                <div class="team-grid">
+                    <div class="card team-card highlight"><div class="avatar">TL</div><div><div class="team-name">Basmala Elkady</div><div class="team-role">Team Leader</div></div></div>
+                    <div class="card team-card"><div class="avatar">A</div><div><div class="team-name">Menna Abdo</div></div></div>
+                    <div class="card team-card"><div class="avatar">S</div><div><div class="team-name">Mariam Ali</div></div></div>
+                    <div class="card team-card"><div class="avatar">M</div><div><div class="team-name">Hoda Mahmoud</div></div></div>
+                    <div class="card team-card"><div class="avatar">M</div><div><div class="team-name">Mohamed Ayman</div></div></div>
+                </div>
+                <div class="card" style="margin-top: 4px;"><div class="card-inner">
+                    <h3>Credits and sources</h3>
+                    <div class="credits">
+                        <div class="credit-line"><strong>Data source</strong><span>Processed CSV files and Project_Provided_Data.pdf</span></div>
+                        <div class="credit-line"><strong>Implementation source</strong><span>Backend algorithms, services, models, and simulation scripts</span></div>
+                        <div class="credit-line"><strong>Presentation design</strong><span>Rebuilt as a dark futuristic academic deck</span></div>
+                    </div>
+                </div></div>
+                <div class="section-footer"><div>Additional project members were found in Frontend/index.html</div><div>19 / 20</div></div>
+            </div>
+        </section>
+
+        <!-- SLIDE 20 -->
+        <section class="slide" data-title="Conclusion" data-index="20">
+            <div class="slide-content">
+                <div class="slide-head">
+                    <div>
+                        <div class="slide-kicker">19. Conclusion and Future Work</div>
+                        <h2>Clean academic summary and closing</h2>
+                    </div>
+                    <div class="glass-strip"><i class="fa-solid fa-star"></i> final slide</div>
+                </div>
+                <div class="two-col align-center" style="flex: 1;">
+                    <div class="card"><div class="card-inner">
+                        <h3>Conclusion</h3>
+                        <ul class="bullet-list">
+                            <li>The project builds a shared transport graph for routing, emergency response, traffic control, and fleet planning.</li>
+                            <li>It combines exact optimization and heuristic search to address both planning and real-time decisions.</li>
+                            <li>The implementation is modular, testable, and grounded in the repository's actual data and code.</li>
+                        </ul>
+                    </div></div>
+                    <div class="card highlight"><div class="card-inner">
+                        <h3>Future work</h3>
+                        <ul class="bullet-list">
+                            <li>Regenerate and publish final benchmark charts from the latest simulation outputs.</li>
+                            <li>Connect traffic forecasting more directly to routing cost updates.</li>
+                            <li>Expand the graph to more districts, facilities, and transit modes.</li>
+                            <li>Package the system with a live dashboard for decision makers.</li>
+                        </ul>
+                    </div></div>
+                </div>
+                <div class="card"><div class="card-inner center">
+                    <div class="slide-kicker" style="margin-bottom: 12px;">Thank you</div>
+                    <div class="big-number accent" style="font-size: 72px; margin-bottom: 10px;">Q&amp;A</div>
+                    <p>Smart Cairo: Unified Optimization Framework</p>
+                </div></div>
+                <div class="section-footer"><div>End of presentation</div><div>20 / 20</div></div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        (function () {
+            const slides = Array.from(document.querySelectorAll('.slide'));
+            const progressBar = document.getElementById('progressBar');
+            const activeSlideLabel = document.getElementById('activeSlideLabel');
+
+            const updateHud = (index) => {
+                const normalized = Math.min(Math.max(index, 1), slides.length);
+                activeSlideLabel.textContent = `Slide ${String(normalized).padStart(2, '0')} / ${String(slides.length).padStart(2, '0')}`;
+                progressBar.style.width = `${(normalized / slides.length) * 100}%`;
+            };
+
+            updateHud(1);
+
+            const observer = new IntersectionObserver((entries) => {
+                let best = null;
+
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        if (!best || entry.intersectionRatio > best.intersectionRatio) {
+                            best = entry;
+                        }
+                    }
+                });
+
+                if (best) {
+                    const index = Number(best.target.dataset.index || 1);
+                    updateHud(index);
+                }
+            }, {
+                threshold: [0.35, 0.5, 0.7, 0.85]
+            });
+
+            slides.forEach((slide) => observer.observe(slide));
+
+            window.addEventListener('keydown', (event) => {
+                const active = slides.find((slide) => {
+                    const rect = slide.getBoundingClientRect();
+                    return rect.top <= window.innerHeight * 0.45 && rect.bottom >= window.innerHeight * 0.45;
+                });
+
+                const currentIndex = active ? Number(active.dataset.index || 1) : 1;
+
+                if (event.key === 'ArrowDown' || event.key === 'PageDown') {
+                    const next = slides[Math.min(currentIndex, slides.length - 1)];
+                    next?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+
+                if (event.key === 'ArrowUp' || event.key === 'PageUp') {
+                    const previous = slides[Math.max(currentIndex - 2, 0)];
+                    previous?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        })();
+    </script>
 </body>
 </html>
