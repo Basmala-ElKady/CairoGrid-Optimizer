@@ -9,8 +9,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 # Imports based on your tree structure
 from Backend.algorithms.dp.resource_allocation import ResourceAllocationDP
-# Using EmergencyPriority as it's a confirmed file in your greedy folder
-from Backend.algorithms.greedy.emergency_priority import EmergencyPrioritySystem
+from Backend.algorithms.greedy.emergency_priority import EmergencyPrioritySystem as EmergencyPriority
 
 class TestAlgorithmContracts(unittest.TestCase):
     """
@@ -50,7 +49,8 @@ class TestAlgorithmContracts(unittest.TestCase):
         ]
         
         # Greedy usually sorts or picks the best immediate option
-        result = alg.run(data=data)
+        # EmergencyPrioritySystem.run expects a graph as the first argument or in kwargs
+        result = alg.run(graph=None, base_signal_plan={}, emergency_path=[])
         self.assertIsNotNone(result)
         print("✅ Greedy Contract: run() implemented abstract method successfully.")
 

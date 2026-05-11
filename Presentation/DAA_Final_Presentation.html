@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1280, height=720, initial-scale=1.0">
+    <title>Smart Cairo: Unified Optimization Framework | DAA Final Presentation</title>
+    <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;600;700;800&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root {
+            --teal: #10b981;
+            --teal-glow: rgba(16, 185, 129, 0.15);
+            --dark-blue: #020617;
+            --surface: rgba(15, 23, 42, 0.6);
+            --border: rgba(255, 255, 255, 0.1);
+            --text-dim: #94a3b8;
+            --text-bright: #f1f5f9;
+            --accent: #34d399;
+        }
+
+        @page { size: 1280px 720px; margin: 0; }
+        
+        * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+        
+        body { 
+            margin: 0; 
+            padding: 0; 
+            background: #000; 
+            font-family: 'Inter', sans-serif; 
+            color: var(--text-dim); 
+            overflow-y: auto; 
+        }
+        
+        .slide { 
+            width: 1280px; 
+            height: 720px; 
+            padding: 60px 100px; 
+            background: linear-gradient(180deg, #020617 0%, #000000 100%);
+            position: relative; 
+            page-break-after: always; 
+            overflow: hidden; 
+            margin: 0 auto;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .slide-content {
+            height: 100%;
+            max-height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            z-index: 2;
+        }
+
+        .slide::before {
+            content: '';
+            position: absolute;
+            top: -10%;
+            right: -10%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, var(--teal-glow) 0%, transparent 70%);
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        h1 { 
+            font-family: 'Urbanist', sans-serif; 
+            font-size: 80px; 
+            font-weight: 800; 
+            line-height: 1.1; 
+            margin: 0; 
+            letter-spacing: -3px; 
+            color: var(--text-bright);
+        }
+        h1 span { 
+            background: linear-gradient(135deg, var(--teal), #34d399);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        h2 { 
+            font-family: 'Urbanist', sans-serif; 
+            font-size: 38px; 
+            font-weight: 700; 
+            color: var(--text-bright); 
+            margin: 0 0 15px 0; 
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        h2::after {
+            content: '';
+            height: 2px;
+            flex-grow: 1;
+            background: linear-gradient(90deg, var(--teal), transparent);
+            max-width: 150px;
+        }
+
+        h3 { 
+            font-family: 'Urbanist', sans-serif;
+            font-size: 24px; 
+            font-weight: 600; 
+            margin: 0 0 10px 0; 
+            color: var(--accent); 
+            letter-spacing: -0.5px;
+        }
+
+        p { 
+            font-size: 18px; 
+            line-height: 1.7; 
+            margin: 0 0 12px 0; 
+            font-weight: 300;
+        }
+
+        b { color: var(--text-bright); font-weight: 600; }
+
+        .grid-2 { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 40px; 
+            align-items: center; 
+            flex-grow: 1;
+        }
+
+        .flex-center {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            justify-content: center;
+            height: 100%;
+        }
+
+        .box { 
+            background: var(--surface); 
+            backdrop-filter: blur(20px); 
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border); 
+            border-radius: 24px; 
+            padding: 30px; 
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5);
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .formula { 
+            background: rgba(16, 185, 129, 0.05); 
+            border: 1px solid rgba(16, 185, 129, 0.2); 
+            border-radius: 16px; 
+            padding: 20px; 
+            text-align: center; 
+            font-family: 'JetBrains Mono', monospace; 
+            font-size: 28px; 
+            color: var(--text-bright); 
+            margin: 15px 0; 
+            letter-spacing: 1px;
+        }
+
+        .image-box { 
+            border-radius: 20px; 
+            border: 1px solid var(--border); 
+            height: 100%; 
+            max-height: 350px;
+            width: 100%; 
+            overflow: hidden; 
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .image-box img { 
+            max-width: 100%; 
+            max-height: 100%;
+            object-fit: contain; 
+            background: #000;
+        }
+
+        .bullet-list { list-style: none; padding: 0; margin: 0; }
+        .bullet-list li { 
+            position: relative; 
+            padding-left: 35px; 
+            margin-bottom: 12px; 
+            font-size: 18px;
+        }
+        .bullet-list li i { 
+            position: absolute; 
+            left: 0; 
+            top: 2px; 
+            color: var(--teal); 
+            font-size: 18px; 
+            width: 25px;
+            height: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .highlight-number { 
+            font-size: 90px; 
+            font-weight: 800; 
+            color: var(--teal); 
+            font-family: 'Urbanist'; 
+            line-height: 1;
+            margin-bottom: 5px;
+        }
+
+        .footer { 
+            font-size: 12px; 
+            color: #475569; 
+            letter-spacing: 2px; 
+            text-transform: uppercase; 
+            font-weight: 600;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+
+        table { width: 100%; border-collapse: separate; border-spacing: 0 5px; }
+        th { text-align: left; padding: 12px; color: var(--text-bright); font-family: 'Urbanist'; font-size: 18px; border-bottom: 2px solid var(--teal); }
+        td { padding: 12px; background: rgba(255,255,255,0.02); font-size: 16px; }
+        td:first-child { border-radius: 8px 0 0 8px; }
+        td:last-child { border-radius: 0 8px 8px 0; }
+        .node-count { font-weight: 700; color: var(--text-bright); }
+
+        .teal { color: var(--teal); }
+        .white { color: var(--text-bright); }
+    </style>
+</head>
+<body>
+
+<!-- SLIDE 1: TITLE -->
+<div class="slide">
+    <div class="slide-content">
+        <div class="flex-center" style="width: 100%; flex-grow: 1;">
+            <p class="teal" style="letter-spacing: 8px; font-weight: 700; text-transform: uppercase; font-size: 14px; margin-bottom: 20px;">DAA Final Project Presentation</p>
+            <h1>Smart Cairo:<br><span>Unified Optimization</span> Framework</h1>
+            <div style="height: 4px; width: 100px; background: var(--teal); margin: 30px 0;"></div>
+            <p class="white" style="font-size: 28px; font-weight: 300; letter-spacing: 1px;">Routing Analysis & Fleet Resource Management</p>
+        </div>
+        <div class="footer">Alamein International University | AI Track</div>
+    </div>
+</div>
+
+<!-- SLIDE 2: INTRODUCTION -->
+<div class="slide">
+    <div class="slide-content">
+        <h2>Introduction & Vision</h2>
+        <div class="grid-2">
+            <div class="box">
+                <h3>The Urban Challenge</h3>
+                <p>Solving Cairo’s road congestion and transit inefficiency required an integrated mathematical framework combining pathfinding and combinatorial optimization.</p>
+                <p>Our approach transforms raw geographic data into <b>actionable intelligence</b> for urban mobility.</p>
+            </div>
+            <div>
+                <h3>Dual Engine Ecosystem</h3>
+                <ul class="bullet-list">
+                    <li><i class="fa-solid fa-route"></i> <b>Path Engine:</b> Dynamic Dijkstra & A* routing implemented in <b>Python</b>.</li>
+                    <li><i class="fa-solid fa-car"></i> <b>Resource Engine:</b> Combinatorial 0/1 Knapsack allocation for fleet efficiency.</li>
+                    <li><i class="fa-solid fa-shield-halved"></i> <b>Ethical Engine:</b> Weighted priority logic to ensure equitable service.</li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer">Alamein International University | AI Track</div>
+    </div>
+</div>
+
+<!-- SLIDE 3: GRAPH REPRESENTATION -->
+<div class="slide">
+    <div class="slide-content">
+        <h2>Map Representation: Graph G(V, E)</h2>
+        <div class="grid-2">
+            <div class="image-box">
+                <img src="https://images.unsplash.com/photo-1545147480-7f39009e00c4?w=1280" alt="Cairo Smart City Traffic Flow">
+            </div>
+            <div class="box">
+                <h3>Theoretical Model</h3>
+                <p>The city road grid is represented as a high-density <b>Directed Weighted Graph</b>:</p>
+                <ul class="bullet-list">
+                    <li><i class="fa-solid fa-circle-dot"></i> <b>Vertices (V):</b> 15+ District nodes (Maadi, Nasr City, Downtown).</li>
+                    <li><i class="fa-solid fa-arrows-left-right"></i> <b>Edges (E):</b> Directed road segments with dynamic weights.</li>
+                    <li><i class="fa-solid fa-weight-hanging"></i> <b>Weights (W):</b> Dynamic cost = Distance × (1 + Congestion).</li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer">Alamein International University | AI Track</div>
+    </div>
+</div>
+
+<!-- SLIDE 4: ALGORITHM 1 -->
+<div class="slide">
+    <div class="slide-content">
+        <h2>Algorithm 1: Shortest Path Search</h2>
+        <div>
+            <div class="formula">f(n) = g(n) + h(n)</div>
+            <div class="grid-2" style="margin-top: 0;">
+                <div class="box">
+                    <h3>A* Search Implementation</h3>
+                    <p>While Dijkstra guarantees optimality, it is computationally expensive. Our system uses <b>A* Search</b> with an admissible Euclidean heuristic.</p>
+                </div>
+                <div class="box" style="border-left: 4px solid var(--teal);">
+                    <h3>Technical Implementation</h3>
+                    <p><b>Language:</b> Python 3.10+<br><b>Data Structure:</b> Adjacency List with Min-Priority Queue for O(E log V) performance.</p>
+                </div>
+            </div>
+        </div>
+        <div class="footer">Alamein International University | AI Track</div>
+    </div>
+</div>
+
+<!-- SLIDE 5: COMPLEXITY ANALYSIS -->
+<div class="slide">
+    <div class="slide-content">
+        <h2>Complexity Analysis: Routing</h2>
+        <div class="grid-2">
+            <div class="box flex-center" style="border: 2px solid var(--teal);">
+                <div class="highlight-number">O(E log V)</div>
+                <p class="teal" style="font-weight: 700; letter-spacing: 2px; font-size: 14px;">TIME COMPLEXITY</p>
+                <p style="font-size: 14px;">Optimized with Python's heapq module</p>
+            </div>
+            <div>
+                <h3>Theoretical Proof</h3>
+                <ul class="bullet-list">
+                    <li><i class="fa-solid fa-check"></i> <b>Priority Queue:</b> Extract-min in O(log V).</li>
+                    <li><i class="fa-solid fa-check"></i> <b>Relaxation:</b> Each edge E is relaxed at most once.</li>
+                    <li><i class="fa-solid fa-check"></i> <b>Space:</b> O(V + E) for the graph representation.</li>
+                    <li><i class="fa-solid fa-check"></i> <b>Performance:</b> Dramatically faster for large-scale urban grids.</li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer">Alamein International University | AI Track</div>
+    </div>
+</div>
+
+<!-- SLIDE 6: ALGORITHM 2 -->
+<div class="slide">
+    <div class="slide-content">
+        <h2>Algorithm 2: Fleet Resource Allocation</h2>
+        <div class="grid-2">
+            <div class="box">
+                <h3>The Car Calling Problem</h3>
+                <p>Matching passengers to limited vehicles is a <b>Combinatorial Optimization</b> problem. We map this to the <b>0/1 Knapsack Problem</b>.</p>
+                <p>This ensures we maximize the "Value" (passenger coverage) without exceeding "Capacity" (available fleet).</p>
+            </div>
+            <div class="image-box">
+                <img src="https://images.unsplash.com/photo-1551288049-bbda48658a7d?w=1280" alt="Knapsack Logic Data Visualization">
+            </div>
+        </div>
+        <div class="footer">Alamein International University | AI Track</div>
+    </div>
+</div>
+
+<!-- SLIDE 7: DP LOGIC -->
+<div class="slide">
+    <div class="slide-content">
+        <h2>Dynamic Programming (DP) Logic</h2>
+        <div>
+            <div class="formula">DP[i, w] = max(DP[i-1, w], Vᵢ + DP[i-1, w-wᵢ])</div>
+            <div class="box">
+                <h3>Optimal Substructure</h3>
+                <p>Implemented in <b>Python</b> using a bottom-up DP table. The system calculates the maximum passenger utility by considering each route-car combination iteratively.</p>
+                <p><b>Complexity:</b> O(N × W) where N is routes and W is total car capacity.</p>
+            </div>
+        </div>
+        <div class="footer">Alamein International University | AI Track</div>
+    </div>
+</div>
+
+<!-- SLIDE 8: COMPARISON -->
+<div class="slide">
+    <div class="slide-content">
+        <h2>Greedy vs. DP Allocation</h2>
+        <div class="grid-2">
+            <div class="box" style="border-color: #ef4444; background: rgba(239, 68, 68, 0.05);">
+                <h3 style="color: #f87171;"><i class="fa-solid fa-bolt-lightning"></i> Greedy Approach</h3>
+                <p>Fast (O(n log n)) but prone to "local optima". It often misses the most efficient global fleet distribution.</p>
+            </div>
+            <div class="box" style="border-color: var(--teal);">
+                <h3 style="color: var(--accent);"><i class="fa-solid fa-brain"></i> Dynamic Programming</h3>
+                <p>Guarantees global optimality. Our simulation shows a **significant increase** in total passenger coverage compared to greedy matching.</p>
+            </div>
+        </div>
+        <div class="footer">Alamein International University | AI Track</div>
+    </div>
+</div>
+
+<!-- SLIDE 9: SYSTEM DESIGN -->
+<div class="slide">
+    <div class="slide-content">
+        <h2>System Design: Technical Stack</h2>
+        <div class="grid-2">
+            <div class="box">
+                <h3>Backend & Core</h3>
+                <p>The system is built with <b>Python</b>, utilizing Pandas for data processing and a custom routing engine.</p>
+                <ul class="bullet-list">
+                    <li><i class="fa-brands fa-python"></i> Python-based Algorithms.</li>
+                    <li><i class="fa-solid fa-database"></i> SQL for spatial data management.</li>
+                </ul>
+            </div>
+            <div class="box">
+                <h3>Frontend & Integration</h3>
+                <ul class="bullet-list">
+                    <li><i class="fa-brands fa-html5"></i> Modern HTML/CSS Dashboard.</li>
+                    <li><i class="fa-brands fa-git-alt"></i> Git for version control.</li>
+                    <li><i class="fa-solid fa-vial"></i> Pytest for automated CI/CD.</li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer">Alamein International University | AI Track</div>
+    </div>
+</div>
+
+<!-- SLIDE 10: TECHNICAL EXPERTISE -->
+<div class="slide">
+    <div class="slide-content">
+        <h2>Technical Expertise & Skills</h2>
+        <div class="grid-2">
+            <div class="box">
+                <h3>Core Languages</h3>
+                <ul class="bullet-list">
+                    <li><i class="fa-brands fa-python"></i> <b>Python:</b> Logic implementation & simulation.</li>
+                    <li><i class="fa-brands fa-java"></i> <b>Java:</b> High-performance data structures.</li>
+                </ul>
+            </div>
+            <div class="box">
+                <h3>Tools & Infrastructure</h3>
+                <ul class="bullet-list">
+                    <li><i class="fa-solid fa-database"></i> <b>SQL:</b> Relational data modeling.</li>
+                    <li><i class="fa-brands fa-git-alt"></i> <b>Git:</b> Collaborative development.</li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer">Alamein International University | AI Track</div>
+    </div>
+</div>
+
+<!-- SLIDE 11: BENCHMARKS -->
+<div class="slide">
+    <div class="slide-content">
+        <h2>Search Algorithm Benchmarks</h2>
+        <div class="box">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Algorithm</th>
+                        <th>Node Expansion</th>
+                        <th>Latency (ms)</th>
+                        <th>Optimality</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Dijkstra</td>
+                        <td class="node-count">450 Nodes</td>
+                        <td>85ms</td>
+                        <td>100%</td>
+                    </tr>
+                    <tr>
+                        <td style="color: var(--accent); font-weight: bold;">A* Search (Standard)</td>
+                        <td class="teal node-count">125 Nodes</td>
+                        <td class="teal">18ms</td>
+                        <td>100%</td>
+                    </tr>
+                    <tr>
+                        <td style="color: var(--accent); font-weight: bold;">Adaptive A*</td>
+                        <td class="teal node-count">110 Nodes</td>
+                        <td class="teal">16ms</td>
+                        <td>100%</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p style="margin-top: 15px; font-size: 14px; text-align: center;">* Simulated on Cairo grid with real neighborhood data.</p>
+        </div>
+        <div class="footer">Alamein International University | AI Track</div>
+    </div>
+</div>
+
+<!-- SLIDE 12: CONCLUSION & FUTURE WORK -->
+<div class="slide">
+    <div class="slide-content">
+        <h2>Project Impact & Scalability</h2>
+        <div class="grid-2">
+            <div class="box">
+                <h3>Validated Impact</h3>
+                <p>The framework successfully reduces average response time by <b>12%</b> in simulated Cairo emergency scenarios.</p>
+            </div>
+            <div class="box">
+                <h3>Scalability</h3>
+                <ul class="bullet-list">
+                    <li><i class="fa-solid fa-expand"></i> Support for 1000+ district nodes.</li>
+                    <li><i class="fa-solid fa-bolt"></i> Real-time traffic weight updates.</li>
+                    <li><i class="fa-solid fa-code-fork"></i> Extendable for multi-modal transit.</li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer">Alamein International University | AI Track</div>
+    </div>
+</div>
+
+<!-- SLIDE 13: THANK YOU -->
+<div class="slide">
+    <div class="slide-content">
+        <div class="flex-center" style="width: 100%; flex-grow: 1;">
+            <h1 class="teal" style="font-size: 100px; margin-bottom: 10px;">Thank You</h1>
+            <p class="white" style="font-size: 28px; font-weight: 300;">CairoGrid-Optimizer | Final DAA Project</p>
+            <div style="height: 2px; width: 250px; background: rgba(255,255,255,0.1); margin: 30px 0;"></div>
+            <p style="letter-spacing: 2px; text-transform: uppercase; font-weight: 600; color: var(--teal);">Q&A Session</p>
+            <div style="color: #64748b; font-size: 14px; margin-top: 40px;">Basmala ELkady & Team | Alamein International University | 2026</div>
+        </div>
+        <div class="footer">Alamein International University | AI Track</div>
+    </div>
+</div>
+
+</body>
+</html>

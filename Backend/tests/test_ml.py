@@ -85,7 +85,7 @@ def load_graph():
 # MAIN TEST
 # ----------------------------
 
-def main():
+def test_ml_prediction():
     print("Loading graph...")
 
     graph = load_graph()
@@ -153,8 +153,4 @@ def main():
     else:
         print(f"Traffic is DECREASING by {abs(diff):.3f}")
 
-    print("\n=========================================================\n")
-
-
-if __name__ == "__main__":
-    main()
+    print("\n=========================================================\n")

@@ -16,7 +16,7 @@ class EmergencyService:
         self.astar = AStarAlgorithm()
         # IntersectionPriority instance used for emergency routing; allow injection for tests
         self.intersection_priority = intersection_priority or IntersectionPriority()
-        self.traffic_service = traffic_service or TrafficService()
+        self.traffic_service = traffic_service or TrafficService(graph)
 
     def _load_medical_facilities(self) -> Dict[str, Dict]:
         try:

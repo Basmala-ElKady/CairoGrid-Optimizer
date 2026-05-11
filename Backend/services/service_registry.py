@@ -1,4 +1,6 @@
 import os
+import warnings
+from sklearn.exceptions import InconsistentVersionWarning
 from Backend.services.traffic_ml_service import TrafficMLService
 
 # Private global variable to hold the model instance
@@ -25,7 +27,14 @@ def get_ml_service(graph=None):
 
         # 3. Load if exists, otherwise train and save
         if os.path.exists(model_path):
-            _ml_instance.load_model(model_path)
+            try:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("error", InconsistentVersionWarning)
+                    _ml_instance.load_model(model_path)
+            except (Exception, InconsistentVersionWarning) as e:
+                print(f"Warning: Model version inconsistency or load error ({e}). Re-training...")
+                _ml_instance.train()
+                _ml_instance.save_model(model_path)
         else:
             print("Model file not found. Training model for the first time...")
             _ml_instance.train()

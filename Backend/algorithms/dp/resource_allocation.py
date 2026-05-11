@@ -19,7 +19,7 @@ class ResourceAllocationDP(BaseAlgorithm):
         # 1. Extraction Logic (The Smart Way)
         # If called as run(data_list, 10) -> args[0] is data, args[1] is capacity
         # If called as run(data=my_list, capacity=10) -> kwargs will have them
-        data_list = kwargs.get("data", args[0] if len(args) > 0 else [])
+        data_list = kwargs.get("data_list", kwargs.get("data", args[0] if len(args) > 0 else []))
         capacity = kwargs.get("capacity", args[1] if len(args) > 1 else 0)
 
         # 2. Validation

@@ -34,7 +34,7 @@ def test_traffic_service():
 
     # INIT SERVICE
 
-    service = TrafficService()
+    service = TrafficService(graph)
 
    
     # TEST 1: NORMAL for the entire graph (NO EMERGENCY)
