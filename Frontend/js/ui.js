@@ -7,90 +7,18 @@
  */
 
 import * as THREE from 'three';
-import { setMode, setEmergencyMode } from './environment.js';
-import { setRoadState } from './three-scene.js';
+import { setMode, setEmergencyMode } from './environment.js?v=20260512-api-sync';
+import { setRoadState } from './three-scene.js?v=20260512-api-sync';
 
-// ══════════════════════════════════════════════
-// EGYPTIAN CITY GRAPH — expanded with new nodes
-// ══════════════════════════════════════════════
-const cityNodes = [
-  { id: 'october',       label: '6th October',       x: 0.05, y: 0.40 },
-  { id: 'sheikh_zayed',  label: 'Sheikh Zayed',      x: 0.08, y: 0.25 },
-  { id: 'smart_village', label: 'Smart Village',     x: 0.10, y: 0.15 },
-  { id: 'mohandessin',   label: 'Mohandessin',       x: 0.35, y: 0.45 },
-  { id: 'dokki',         label: 'Dokki',             x: 0.35, y: 0.52 },
-  { id: 'giza',          label: 'Giza',              x: 0.32, y: 0.60 },
-  { id: 'cairo_univ',    label: 'Cairo University',  x: 0.35, y: 0.57 },
-  { id: 'zamalek',       label: 'Zamalek',           x: 0.42, y: 0.48 },
-  { id: 'downtown',      label: 'Downtown',          x: 0.48, y: 0.50 },
-  { id: 'ramses_station',label: 'Ramses Station',    x: 0.50, y: 0.45 },
-  { id: 'egyptian_museum',label:'Egyptian Museum',   x: 0.47, y: 0.52 },
-  { id: 'qasr_el_aini',  label: 'Qasr El Aini Hosp', x: 0.45, y: 0.55 },
-  { id: 'shubra',        label: 'Shubra',            x: 0.48, y: 0.25 },
-  { id: 'heliopolis',    label: 'Heliopolis',        x: 0.65, y: 0.30 },
-  { id: 'airport',       label: 'Cairo Int. Airport',x: 0.75, y: 0.20 },
-  { id: 'nasr_city',     label: 'Nasr City',         x: 0.65, y: 0.45 },
-  { id: 'cairo_stadium', label: 'Cairo Stadium',     x: 0.62, y: 0.40 },
-  { id: 'al_azhar',      label: 'Al-Azhar Univ',     x: 0.60, y: 0.48 },
-  { id: 'new_cairo',     label: 'New Cairo',         x: 0.85, y: 0.50 },
-  { id: 'festival_city', label: 'Cairo Festival City',x: 0.80, y: 0.55 },
-  { id: 'al_rehab',      label: 'Al Rehab',          x: 0.88, y: 0.40 },
-  { id: 'nac',           label: 'New Admin Capital', x: 0.95, y: 0.60 },
-  { id: 'maadi',         label: 'Maadi',             x: 0.55, y: 0.75 },
-  { id: 'maadi_military',label: 'Maadi Military Hosp',x:0.57, y: 0.80 },
-  { id: 'helwan',        label: 'Helwan',            x: 0.60, y: 0.95 }
+const REQUEST_TIMEOUT_MS = 10000;
+const HEALTH_POLL_INTERVAL_MS = 5000;
+const LOCAL_API_CANDIDATES = [
+  'http://127.0.0.1:8000/api',
+  'http://localhost:8000/api',
 ];
 
-const cityEdges = [
-  // West links
-  { from: 'smart_village', to: 'sheikh_zayed',  weight: 5,  morningPeak: 0.4, nightTraffic: 0.1 },
-  { from: 'sheikh_zayed',  to: 'october',       weight: 8,  morningPeak: 0.5, nightTraffic: 0.2 },
-  { from: 'sheikh_zayed',  to: 'mohandessin',   weight: 12, morningPeak: 0.8, nightTraffic: 0.3 },
-  { from: 'october',       to: 'giza',          weight: 15, morningPeak: 0.7, nightTraffic: 0.2 },
-
-  // West/Central
-  { from: 'mohandessin',   to: 'dokki',         weight: 3,  morningPeak: 0.8, nightTraffic: 0.4 },
-  { from: 'dokki',         to: 'cairo_univ',    weight: 2,  morningPeak: 0.9, nightTraffic: 0.3 },
-  { from: 'cairo_univ',    to: 'giza',          weight: 2,  morningPeak: 0.8, nightTraffic: 0.4 },
-  { from: 'mohandessin',   to: 'zamalek',       weight: 4,  morningPeak: 0.7, nightTraffic: 0.3 },
-  { from: 'dokki',         to: 'qasr_el_aini',  weight: 3,  morningPeak: 0.9, nightTraffic: 0.4 },
-
-  // Zamalek
-  { from: 'zamalek',       to: 'downtown',      weight: 3,  morningPeak: 0.8, nightTraffic: 0.5 },
-
-  // Central Hubs
-  { from: 'downtown',      to: 'ramses_station',weight: 2,  morningPeak: 0.9, nightTraffic: 0.6 },
-  { from: 'downtown',      to: 'egyptian_museum',weight:1,  morningPeak: 0.8, nightTraffic: 0.4 },
-  { from: 'egyptian_museum',to: 'qasr_el_aini', weight: 2,  morningPeak: 0.7, nightTraffic: 0.3 },
-  { from: 'ramses_station',to: 'shubra',        weight: 4,  morningPeak: 0.8, nightTraffic: 0.5 },
-
-  // East paths
-  { from: 'ramses_station',to: 'cairo_stadium', weight: 6,  morningPeak: 0.7, nightTraffic: 0.3 },
-  { from: 'downtown',      to: 'al_azhar',      weight: 5,  morningPeak: 0.9, nightTraffic: 0.4 },
-  { from: 'cairo_stadium', to: 'heliopolis',    weight: 4,  morningPeak: 0.7, nightTraffic: 0.2 },
-  { from: 'cairo_stadium', to: 'nasr_city',     weight: 3,  morningPeak: 0.8, nightTraffic: 0.3 },
-  { from: 'al_azhar',      to: 'nasr_city',     weight: 4,  morningPeak: 0.9, nightTraffic: 0.4 },
-
-  // North-East
-  { from: 'shubra',        to: 'heliopolis',    weight: 8,  morningPeak: 0.8, nightTraffic: 0.4 },
-  { from: 'heliopolis',    to: 'airport',       weight: 5,  morningPeak: 0.6, nightTraffic: 0.2 },
-  { from: 'nasr_city',     to: 'airport',       weight: 7,  morningPeak: 0.7, nightTraffic: 0.2 },
-
-  // Deep East
-  { from: 'nasr_city',     to: 'new_cairo',     weight: 9,  morningPeak: 0.8, nightTraffic: 0.3 },
-  { from: 'airport',       to: 'al_rehab',      weight: 8,  morningPeak: 0.6, nightTraffic: 0.1 },
-  { from: 'new_cairo',     to: 'al_rehab',      weight: 4,  morningPeak: 0.5, nightTraffic: 0.2 },
-  { from: 'new_cairo',     to: 'festival_city', weight: 3,  morningPeak: 0.6, nightTraffic: 0.3 },
-  { from: 'festival_city', to: 'nac',           weight: 12, morningPeak: 0.5, nightTraffic: 0.1 },
-
-  // South links
-  { from: 'qasr_el_aini',  to: 'maadi',         weight: 10, morningPeak: 0.7, nightTraffic: 0.2 },
-  { from: 'al_azhar',      to: 'maadi',         weight: 12, morningPeak: 0.6, nightTraffic: 0.3 },
-  { from: 'festival_city', to: 'maadi',         weight: 14, morningPeak: 0.5, nightTraffic: 0.2 },
-  { from: 'maadi',         to: 'maadi_military',weight: 2,  morningPeak: 0.4, nightTraffic: 0.1 },
-  { from: 'maadi_military',to: 'helwan',        weight: 12, morningPeak: 0.5, nightTraffic: 0.2 },
-  { from: 'giza',          to: 'helwan',        weight: 18, morningPeak: 0.6, nightTraffic: 0.2 }
-];
+let cityNodes = [];
+let cityEdges = [];
 
 // ── State ─────────────────────────────────────
 let mapCanvas, mapCtx;
@@ -111,9 +39,252 @@ let currentAlgorithm = 'dijkstra';
 let comparisonMode = false;
 let mstEdges = []; // For Prim mode
 let dpNodes = []; // For DP mode
+let lastRouteCoordinates = [];
+let resolvedApiBase = null;
+let graphLoaded = false;
+let graphLoadingPromise = null;
+let healthPollId = null;
+let dashboardEventsBound = false;
+let mapLoopStarted = false;
 
 // Padding for graph display
 const PAD = 25;
+
+function getNodeById(nodeId) {
+  return cityNodes.find((node) => node.id === nodeId);
+}
+
+function getStoredApiBase() {
+  try {
+    return window.localStorage?.getItem('cairogrid.apiBase') || null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function storeApiBase(baseUrl) {
+  try {
+    window.localStorage?.setItem('cairogrid.apiBase', baseUrl);
+  } catch (error) {
+    // Ignore storage access issues and continue with the in-memory value.
+  }
+}
+
+function buildApiCandidates() {
+  const overrides = [
+    window.CAIROGRID_API_BASE,
+    getStoredApiBase(),
+  ].filter(Boolean);
+
+  const sameOriginCandidate =
+    window.location.protocol === 'file:'
+      ? null
+      : `${window.location.origin.replace(/\/$/, '')}/api`;
+
+  return [...new Set([
+    ...overrides,
+    sameOriginCandidate,
+    ...LOCAL_API_CANDIDATES,
+  ].filter(Boolean))];
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error('Request timed out while contacting the backend.');
+    }
+    throw new Error('Unable to reach the backend API.');
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
+async function probeApiBase(baseUrl) {
+  const response = await fetchWithTimeout(`${baseUrl}/health`, {
+    headers: { Accept: 'application/json' },
+  }, 2500);
+
+  if (!response.ok) {
+    throw new Error(`Health probe failed (${response.status})`);
+  }
+
+  return baseUrl;
+}
+
+async function resolveApiBase(forceRefresh = false) {
+  if (!forceRefresh && resolvedApiBase) {
+    return resolvedApiBase;
+  }
+
+  const candidates = buildApiCandidates();
+  for (const candidate of candidates) {
+    try {
+      resolvedApiBase = await probeApiBase(candidate);
+      storeApiBase(resolvedApiBase);
+      return resolvedApiBase;
+    } catch (error) {
+      console.debug(`API probe failed for ${candidate}:`, error.message);
+    }
+  }
+
+  resolvedApiBase = null;
+  throw new Error('Backend API is offline. Start it locally on http://127.0.0.1:8000.');
+}
+
+async function getApiUrl(path, forceRefresh = false) {
+  const baseUrl = await resolveApiBase(forceRefresh);
+  return `${baseUrl}${path}`;
+}
+
+async function apiRequest(path, options = {}) {
+  let response;
+
+  try {
+    response = await fetchWithTimeout(await getApiUrl(path), {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options.headers || {})
+      },
+      ...options,
+    });
+  } catch (error) {
+    if (error.message.includes('offline') || error.message.includes('timed out')) {
+      throw error;
+    }
+
+    resolvedApiBase = null;
+    response = await fetchWithTimeout(await getApiUrl(path, true), {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options.headers || {})
+      },
+      ...options,
+    });
+  }
+
+  const isJson = response.headers.get('content-type')?.includes('application/json');
+  const payload = isJson ? await response.json() : null;
+
+  if (!response.ok) {
+    const message = payload?.error?.message || `Request failed (${response.status})`;
+    throw new Error(message);
+  }
+
+  return payload;
+}
+
+async function syncHealthStatus() {
+  const statusEl = document.getElementById('system-status');
+  try {
+    const health = await apiRequest('/health');
+    if (statusEl) {
+      statusEl.innerHTML = '<span class="badge-dot"></span> ONLINE';
+      statusEl.classList.add('online');
+      statusEl.classList.remove('offline');
+      statusEl.title = `Graph: ${health.nodes_count} nodes / ${health.edges_count} edges`;
+    }
+    return health;
+  } catch (error) {
+    resolvedApiBase = null;
+    if (statusEl) {
+      statusEl.innerHTML = '<span class="badge-dot"></span> OFFLINE';
+      statusEl.classList.remove('online');
+      statusEl.classList.add('offline');
+      statusEl.title = error.message;
+    }
+    throw error;
+  }
+}
+
+async function loadGraphData(forceRefresh = false) {
+  if (graphLoadingPromise) {
+    return graphLoadingPromise;
+  }
+
+  if (graphLoaded && !forceRefresh) {
+    return { nodes: cityNodes, edges: cityEdges };
+  }
+
+  graphLoadingPromise = (async () => {
+    const graph = await apiRequest('/graph');
+    cityNodes = graph.nodes.map((node) => ({
+      id: node.id,
+      label: node.name,
+      type: node.type,
+      x: node.x,
+      y: node.y,
+      metadata: node.metadata || {},
+    }));
+    cityEdges = graph.edges.map((edge) => ({
+      from: edge.source,
+      to: edge.target,
+      distance: edge.distance,
+      capacity: edge.capacity,
+      trafficData: edge.traffic || {},
+      metadata: edge.metadata || {},
+      traffic: 0.3,
+    }));
+    updateEdgeTraffic();
+    populateSelectors();
+    generateCurves();
+    createTrafficParticles();
+    graphLoaded = true;
+    return graph;
+  })();
+
+  try {
+    return await graphLoadingPromise;
+  } catch (error) {
+    graphLoaded = false;
+    throw error;
+  } finally {
+    graphLoadingPromise = null;
+  }
+}
+
+async function pollHealthAndBootstrap(notifyOnFailure = false) {
+  try {
+    await syncHealthStatus();
+    if (!graphLoaded || cityNodes.length === 0 || cityEdges.length === 0) {
+      await loadGraphData();
+    }
+  } catch (error) {
+    if (notifyOnFailure) {
+      showNotification(error.message || 'Backend unavailable');
+    }
+  }
+}
+
+function startHealthPolling() {
+  if (healthPollId) {
+    window.clearInterval(healthPollId);
+  }
+
+  pollHealthAndBootstrap(true);
+  healthPollId = window.setInterval(() => {
+    pollHealthAndBootstrap(false);
+  }, HEALTH_POLL_INTERVAL_MS);
+}
+
+function stopHealthPolling() {
+  if (healthPollId) {
+    window.clearInterval(healthPollId);
+    healthPollId = null;
+  }
+}
+
+function handleDashboardResize() {
+  resizeMap();
+  generateCurves();
+}
 
 // ── Init Dashboard ────────────────────────────
 export function initDashboard() {
@@ -126,24 +297,17 @@ export function initDashboard() {
   if (mapCanvasCompare) mapCtxCompare = mapCanvasCompare.getContext('2d');
   
   resizeMap();
-  populateSelectors();
-  bindEvents();
-  startMapLoop();
-  generateCurves(); // Generate initial curves
-  createTrafficParticles();
-  updateEdgeTraffic();
-
-  window.addEventListener('resize', () => {
-    resizeMap();
-    generateCurves(); // Re-generate curves on resize
-  });
-  
-  // Set initial status to Online
-  const statusEl = document.getElementById('system-status');
-  if (statusEl) {
-    statusEl.innerHTML = '<span class="badge-dot"></span> ONLINE';
-    statusEl.classList.add('online');
+  if (!dashboardEventsBound) {
+    bindEvents();
+    window.addEventListener('resize', handleDashboardResize);
+    dashboardEventsBound = true;
   }
+  if (!mapLoopStarted) {
+    startMapLoop();
+    mapLoopStarted = true;
+  }
+
+  startHealthPolling();
 }
 
 function resizeMap() {
@@ -240,7 +404,7 @@ function populateSelectors() {
   const aiSrcSelect = document.getElementById('ai-source-select');
   const aiDstSelect = document.getElementById('ai-dest-select');
   
-  if (!srcSelect || !dstSelect) return;
+  if (!srcSelect || !dstSelect || cityNodes.length === 0) return;
   
   srcSelect.innerHTML = '<option value="" disabled selected>Select origin</option>';
   dstSelect.innerHTML = '<option value="" disabled selected>Select destination</option>';
@@ -254,10 +418,10 @@ function populateSelectors() {
     if (aiDstSelect) aiDstSelect.add(new Option(node.label, node.id));
   });
   
-  srcSelect.value = 'sheikh_zayed';
-  dstSelect.value = 'new_cairo';
-  if (aiSrcSelect) aiSrcSelect.value = 'sheikh_zayed';
-  if (aiDstSelect) aiDstSelect.value = 'new_cairo';
+  srcSelect.value = cityNodes[0]?.id || '';
+  dstSelect.value = cityNodes[1]?.id || cityNodes[0]?.id || '';
+  if (aiSrcSelect) aiSrcSelect.value = cityNodes[0]?.id || '';
+  if (aiDstSelect) aiDstSelect.value = cityNodes[1]?.id || cityNodes[0]?.id || '';
 }
 
 function bindEvents() {
@@ -268,6 +432,7 @@ function bindEvents() {
       currentTimePeriod = e.target.value;
       if (e.target.value === 'morning') setMode('morning');
       else if (e.target.value === 'afternoon') setMode('day');
+      else if (e.target.value === 'evening') setMode('night');
       else setMode('night');
       updateEdgeTraffic();
       createTrafficParticles();
@@ -332,20 +497,7 @@ function bindEvents() {
 
   const runPredBtn = document.getElementById('run-prediction-btn');
   if (runPredBtn) {
-      runPredBtn.addEventListener('click', () => {
-          const placeholder = document.getElementById('ai-placeholder');
-          const output = document.getElementById('ai-output');
-          
-          if (placeholder) placeholder.style.display = 'none';
-          if (output) {
-              output.style.display = 'none'; // hide first
-              showNotification("Running ML Analysis...");
-              setTimeout(() => {
-                  output.style.display = 'block';
-                  gsap.fromTo(output, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.8, ease: 'power3.out' });
-              }, 1200);
-          }
-      });
+      runPredBtn.addEventListener('click', () => runPrediction());
   }
 
   document.querySelectorAll('.mode-btn[data-mode]').forEach((btn) => {
@@ -369,12 +521,37 @@ function bindEvents() {
   const gmapsBtn = document.getElementById('gmaps-btn');
   if (gmapsBtn) {
       gmapsBtn.addEventListener('click', () => {
-          showNotification("Opening route in Google Maps (Mock)");
-          setTimeout(() => {
-              window.open("https://maps.google.com/?q=Cairo", "_blank");
-          }, 800);
+          if (!lastRouteCoordinates || lastRouteCoordinates.length < 2) {
+              showNotification('Compute a route first');
+              return;
+          }
+          const [origin, ...rest] = lastRouteCoordinates;
+          const destination = rest[rest.length - 1];
+          const waypoints = rest.slice(0, -1);
+          const params = new URLSearchParams({
+              api: '1',
+              travelmode: 'driving',
+              origin: `${origin.lat},${origin.lng}`,
+              destination: `${destination.lat},${destination.lng}`,
+          });
+          if (waypoints.length) {
+              params.set('waypoints', waypoints.map((point) => `${point.lat},${point.lng}`).join('|'));
+          }
+          window.open(`https://www.google.com/maps/dir/?${params.toString()}`, '_blank');
       });
   }
+}
+
+function getCompareRouteForMaps(compareResult) {
+  const preferredOrder = [compareResult.winner, 'astar', 'dijkstra'];
+  for (const key of preferredOrder) {
+    if (!key || key === 'tie') continue;
+    const route = compareResult[key];
+    if (route?.path_coordinates?.length > 1) {
+      return route.path_coordinates;
+    }
+  }
+  return [];
 }
 
 function setComparisonMode(enabled) {
@@ -459,13 +636,13 @@ function onMapClick() {
 
 function updateEdgeTraffic() {
   cityEdges.forEach((edge) => {
-    if (currentTimePeriod === 'morning') edge.traffic = edge.morningPeak;
-    else if (currentTimePeriod === 'night') edge.traffic = edge.nightTraffic;
-    else edge.traffic = (edge.morningPeak + edge.nightTraffic) / 2;
+    const flow = edge.trafficData?.[currentTimePeriod] ?? 0;
+    edge.traffic = edge.capacity > 0 ? Math.min(1.5, flow / edge.capacity) : 0;
   });
 }
 
 function updateRoadFromTraffic() {
+  if (!cityEdges.length) return;
   const avg = cityEdges.reduce((s, e) => s + (e.traffic || 0.3), 0) / cityEdges.length;
   if (avg > 0.65) setRoadState('heavy');
   else if (avg > 0.4) setRoadState('moderate');
@@ -473,67 +650,70 @@ function updateRoadFromTraffic() {
 }
 
 // ── Routing Algorithms ──────────────────────────────────
-function dijkstra(sourceId, destId, mode) {
-  return runShortestPath(sourceId, destId, mode, false);
-}
-
-function astar(sourceId, destId, mode) {
-  // Mock A* as returning the same route but exploring fewer nodes
-  const res = runShortestPath(sourceId, destId, mode, true);
-  return res;
-}
-
-function runShortestPath(sourceId, destId, mode, useAStarMock) {
-  const adj = {};
-  cityNodes.forEach((n) => (adj[n.id] = []));
-
-  cityEdges.forEach((e) => {
-    let w = e.weight;
-    if (mode === 'emergency') w *= 0.5;
-    else w *= 1 + (e.traffic || 0.3);
-    adj[e.from].push({ to: e.to, weight: w });
-    adj[e.to].push({ to: e.from, weight: w });
+async function fetchRoute(sourceId, destId, mode) {
+  const endpoint = mode === 'emergency' ? '/route/emergency' : '/route/dijkstra';
+  return apiRequest(endpoint, {
+    method: 'POST',
+    body: JSON.stringify({
+      source: sourceId,
+      destination: destId,
+      time_period: currentTimePeriod,
+      mode,
+    }),
   });
-
-  const dist = {}, prev = {};
-  const visited = new Set();
-  cityNodes.forEach((n) => { dist[n.id] = Infinity; prev[n.id] = null; });
-  dist[sourceId] = 0;
-  
-  let exploredNodes = 0;
-
-  while (true) {
-    let u = null, minD = Infinity;
-    for (const nid of Object.keys(dist)) {
-      if (!visited.has(nid) && dist[nid] < minD) { minD = dist[nid]; u = nid; }
-    }
-    if (u === null || u === destId) {
-        if (u === destId) exploredNodes++;
-        break;
-    }
-    visited.add(u);
-    exploredNodes++;
-    
-    for (const edge of adj[u]) {
-      const alt = dist[u] + edge.weight;
-      if (alt < dist[edge.to]) { dist[edge.to] = alt; prev[edge.to] = u; }
-    }
-  }
-
-  const path = [];
-  let curr = destId;
-  while (curr) { path.unshift(curr); curr = prev[curr]; }
-  if (path[0] !== sourceId) return { path: [], distance: Infinity, explored: exploredNodes, runtime: Math.floor(Math.random()*20)+10 };
-  
-  if (useAStarMock) {
-      exploredNodes = Math.floor(exploredNodes * 0.6); // A* explores fewer nodes
-  }
-  
-  const runtimeMs = useAStarMock ? Math.floor(Math.random()*8)+3 : Math.floor(Math.random()*25)+15;
-  return { path, distance: dist[destId], explored: exploredNodes, runtime: runtimeMs };
 }
 
-function calculateRoute() {
+async function runPrediction() {
+  const source = document.getElementById('ai-source-select')?.value;
+  const destination = document.getElementById('ai-dest-select')?.value;
+  const horizon = Number(document.getElementById('ai-horizon-select')?.value || 30);
+  const placeholder = document.getElementById('ai-placeholder');
+  const output = document.getElementById('ai-output');
+
+  if (!source || !destination || source === destination) {
+    showNotification('Pick different AI origin and destination');
+    return;
+  }
+
+  try {
+    showNotification('Running ML Analysis...');
+    const result = await apiRequest('/ml/predict', {
+      method: 'POST',
+      body: JSON.stringify({
+        source,
+        destination,
+        time_period: currentTimePeriod,
+        prediction_horizon: horizon,
+      }),
+    });
+
+    if (placeholder) placeholder.style.display = 'none';
+    if (output) {
+      output.style.display = 'block';
+      gsap.fromTo(output, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.8, ease: 'power3.out' });
+    }
+
+    const congestionEl = document.getElementById('ai-congestion-val');
+    const delayEl = document.getElementById('ai-time-val');
+    const analysisEl = document.getElementById('ai-analysis-text');
+    const recommendationEl = document.getElementById('ai-rec-text');
+
+    if (congestionEl) congestionEl.textContent = result.predicted_congestion;
+    if (delayEl) delayEl.textContent = `+${Math.round(result.recommended_delay)} Mins`;
+    if (analysisEl) {
+      const finalTrend = result.trend_data[result.trend_data.length - 1];
+      analysisEl.textContent = `Forecast score ${result.forecast_score} at ${finalTrend?.horizon_minutes || horizon} minutes for the selected corridor.`;
+    }
+    if (recommendationEl) {
+      const altNames = (result.suggested_alternative || []).map((nodeId) => getNodeById(nodeId)?.label || nodeId);
+      recommendationEl.textContent = `Suggested alternative: ${altNames.join(' -> ')}.`;
+    }
+  } catch (error) {
+    showNotification(error.message || 'Prediction failed');
+  }
+}
+
+async function calculateRoute() {
   const source = document.getElementById('source-select')?.value;
   const dest = document.getElementById('dest-select')?.value;
   const mode = document.getElementById('mode-select')?.value || 'normal';
@@ -542,80 +722,131 @@ function calculateRoute() {
     showNotification('Please select different source and destination');
     return;
   }
-  
-  // Reset special modes
+
   mstEdges = [];
   dpNodes = [];
+  lastRouteCoordinates = [];
 
-  let resultDijkstra = dijkstra(source, dest, mode);
-  let resultAStar = astar(source, dest, mode);
-  
-  if (resultDijkstra.path.length === 0) { showNotification('No route found'); return; }
+  try {
+    await syncHealthStatus();
+    currentTrafficMode = mode;
 
-  currentTrafficMode = mode;
-  
-  const gmapsBtn = document.getElementById('gmaps-btn');
-  if (gmapsBtn) gmapsBtn.style.display = 'block';
+    const gmapsBtn = document.getElementById('gmaps-btn');
+    if (gmapsBtn) gmapsBtn.style.display = 'none';
 
-  if (comparisonMode) {
-      currentPath = resultAStar.path;
-      currentPathCompare = resultDijkstra.path;
-      displayResults(resultDijkstra, mode, resultAStar);
-  } else {
-      if (currentAlgorithm === 'dijkstra') {
-          currentPath = resultDijkstra.path;
-          displayResults(resultDijkstra, mode);
-      } else if (currentAlgorithm === 'greedy') {
-          // Mock greedy logic
-          currentPath = resultDijkstra.path; // Same path, different visualization
-          showNotification('Greedy Traffic Opt. Applied');
-          displayResults({...resultDijkstra, runtime: Math.floor(Math.random()*5)+1}, mode);
-      } else if (currentAlgorithm === 'prim') {
-          currentPath = [];
-          mstEdges = buildMockMST();
-          showNotification('Prim MST Infrastructure Planning');
-          displayResults({path:[], distance: 150, explored: 25, runtime: 35}, mode);
-      } else if (currentAlgorithm === 'dp') {
-          currentPath = [];
-          dpNodes = buildMockDP();
-          showNotification('Dynamic Programming Transit Optimization');
-          displayResults({path:[], distance: 0, explored: 25, runtime: 120}, mode);
-      }
-  }
-  
-  animatePath();
-  if (mode !== 'emergency') updateRoadFromTraffic();
-}
-
-function buildMockMST() {
-    // Return a random subset of edges that look like a tree
-    const tree = [];
-    const usedNodes = new Set();
-    const availableEdges = [...cityEdges].sort(() => Math.random() - 0.5);
-    
-    for (const e of availableEdges) {
-        if (!usedNodes.has(e.from) || !usedNodes.has(e.to)) {
-            tree.push(e);
-            usedNodes.add(e.from);
-            usedNodes.add(e.to);
-        }
-        if (usedNodes.size === cityNodes.length) break;
+    if (comparisonMode) {
+      const compareResult = await apiRequest('/route/compare', {
+        method: 'POST',
+        body: JSON.stringify({
+          source,
+          destination: dest,
+          time_period: currentTimePeriod,
+          mode,
+        }),
+      });
+      currentPath = compareResult.astar.path || [];
+      currentPathCompare = compareResult.dijkstra.path || [];
+      lastRouteCoordinates = getCompareRouteForMaps(compareResult);
+      if (gmapsBtn) gmapsBtn.style.display = lastRouteCoordinates.length > 1 ? 'block' : 'none';
+      displayResults(compareResult.dijkstra, mode, compareResult.astar, compareResult.winner);
+      animatePath();
+      if (mode !== 'emergency') updateRoadFromTraffic();
+      return;
     }
-    return tree;
+
+    if (currentAlgorithm === 'dijkstra') {
+      const result = await fetchRoute(source, dest, mode);
+      currentPath = result.path || [];
+      currentPathCompare = [];
+      lastRouteCoordinates = result.path_coordinates || [];
+      if (gmapsBtn) gmapsBtn.style.display = lastRouteCoordinates.length > 1 ? 'block' : 'none';
+      displayResults(result, mode);
+      animatePath();
+    } else if (currentAlgorithm === 'greedy') {
+      const [routeResult, greedyResult] = await Promise.all([
+        fetchRoute(source, dest, mode),
+        apiRequest('/traffic/optimize', {
+          method: 'POST',
+          body: JSON.stringify({
+            time_period: currentTimePeriod,
+            source,
+            destination: dest,
+            mode,
+          }),
+        }),
+      ]);
+      currentPath = routeResult.path || [];
+      currentPathCompare = [];
+      lastRouteCoordinates = routeResult.path_coordinates || [];
+      if (gmapsBtn) gmapsBtn.style.display = lastRouteCoordinates.length > 1 ? 'block' : 'none';
+      displayResults({
+        ...routeResult,
+        metadata: {
+          ...(routeResult.metadata || {}),
+          greedy: greedyResult,
+        },
+      }, mode);
+      showNotification(`Traffic optimization improved throughput by ${greedyResult.improvement_percent.toFixed(1)}%`);
+      animatePath();
+    } else if (currentAlgorithm === 'prim') {
+      const mstResult = await apiRequest('/mst');
+      currentPath = [];
+      currentPathCompare = [];
+      mstEdges = mstResult.edges.map((edge) => ({ from: edge.source, to: edge.target }));
+      displayResults({
+        path: [],
+        distance: mstResult.total_cost,
+        travel_time: 0,
+        runtime_ms: 0,
+        nodes_explored: mstResult.nodes_connected,
+        traffic_level: 'low',
+        steps: mstResult.critical_facilities.map((name) => ({ target_name: name })),
+        metadata: { mst: mstResult },
+      }, mode);
+      showNotification('Infrastructure expansion plan loaded');
+    } else if (currentAlgorithm === 'dp') {
+      const transitResult = await apiRequest('/transit/optimize', {
+        method: 'POST',
+        body: JSON.stringify({
+          time_period: currentTimePeriod,
+          capacity: 8,
+        }),
+      });
+      currentPath = [];
+      currentPathCompare = [];
+      dpNodes = Object.keys(transitResult.schedule)
+        .flatMap((key) => key.split('-'))
+        .filter((nodeId, index, arr) => getNodeById(nodeId) && arr.indexOf(nodeId) === index);
+      displayResults({
+        path: [],
+        distance: 0,
+        travel_time: 0,
+        runtime_ms: transitResult.optimization_metrics.total_cost || 0,
+        nodes_explored: transitResult.optimization_metrics.combined_passengers_covered || 0,
+        traffic_level: 'low',
+        steps: Object.entries(transitResult.schedule).map(([busId, times]) => ({
+          source_name: busId,
+          target_name: Array.isArray(times) ? times.join(', ') : String(times),
+        })),
+        metadata: { transit: transitResult },
+      }, mode);
+      showNotification('Transit optimization completed');
+    }
+
+    if (mode !== 'emergency') updateRoadFromTraffic();
+  } catch (error) {
+    currentPath = [];
+    currentPathCompare = [];
+    showNotification(error.message || 'Route request failed');
+  }
 }
 
-function buildMockDP() {
-    // Return nodes with DP schedule times
-    return cityNodes.slice(0, 8).map(n => n.id);
-}
-
-function displayResults(result, mode, compareResult = null) {
+function displayResults(result, mode, compareResult = null, winner = null) {
   const isSpecial = currentAlgorithm === 'prim' || currentAlgorithm === 'dp';
-  const totalTime = isSpecial ? 0 : Math.round(result.distance * 2.5);
-  const distKm = isSpecial ? 0 : (result.distance * 1.8).toFixed(1);
-  const avgTraffic = result.path && result.path.length > 1 ? getPathTraffic(result.path) : 0;
-  const trafficLevel = avgTraffic > 0.65 ? 'high' : avgTraffic > 0.4 ? 'medium' : 'low';
-  const trafficLabels = { low: 'Low Traffic', medium: 'Moderate', high: 'Heavy' };
+  const totalTime = Number(result.travel_time || 0);
+  const distKm = Number(result.distance || 0);
+  const trafficLevel = result.traffic_level || 'low';
+  const trafficLabels = { low: 'Low Traffic', medium: 'Moderate', high: 'Heavy', severe: 'Severe' };
 
   const etaEl = document.getElementById('stat-eta');
   const distEl = document.getElementById('stat-distance');
@@ -626,64 +857,66 @@ function displayResults(result, mode, compareResult = null) {
   const routeStepsEl = document.getElementById('route-steps');
 
   if (etaEl) animateValue(etaEl, 0, totalTime, 900, ' min');
-  if (distEl) animateValue(distEl, 0, parseFloat(distKm), 900, ' km');
+  if (distEl) animateValue(distEl, 0, distKm, 900, isSpecial ? '' : ' km');
   if (stopsEl) stopsEl.textContent = result.path ? Math.max(0, result.path.length - 2) + ' stops' : '--';
 
   if (trafficEl) {
     const bar = trafficEl.querySelector('.traffic-bar');
     const label = trafficEl.querySelector('.traffic-label');
-    if (bar) bar.className = 'traffic-bar traffic-' + trafficLevel;
-    if (label) label.textContent = trafficLabels[trafficLevel];
+    if (bar) {
+      bar.className = 'traffic-bar traffic-' + (trafficLevel === 'severe' ? 'high' : trafficLevel);
+      bar.style.width = `${Math.min(100, getPathTraffic(result.path || []) * 100)}%`;
+    }
+    if (label) label.textContent = trafficLabels[trafficLevel] || trafficLevel;
   }
   
   if (runtimeEl) {
       if (compareResult) {
-          runtimeEl.innerHTML = `Dijkstra: ${result.runtime}ms<br/><span style="color:var(--success)">A*: ${compareResult.runtime}ms</span>`;
+          runtimeEl.innerHTML = `Dijkstra: ${result.runtime_ms}ms<br/><span style="color:var(--success)">A*: ${compareResult.runtime_ms}ms</span>`;
       } else {
-          animateValue(runtimeEl, 0, result.runtime, 900, ' ms');
+          animateValue(runtimeEl, 0, Number(result.runtime_ms || 0), 900, ' ms');
       }
   }
   if (exploredEl) {
       if (compareResult) {
-          exploredEl.innerHTML = `Dijkstra: ${result.explored}<br/><span style="color:var(--success)">A*: ${compareResult.explored}</span>`;
+          exploredEl.innerHTML = `Dijkstra: ${result.nodes_explored}<br/><span style="color:var(--success)">A*: ${compareResult.nodes_explored}</span>`;
       } else {
-          animateValue(exploredEl, 0, result.explored, 900, '');
+          animateValue(exploredEl, 0, Number(result.nodes_explored || 0), 900, '');
       }
   }
 
   // Populate comparison specific cards
   if (compareResult) {
       // A* is compareResult, Dijkstra is result
-      document.getElementById('comp-astar-time').textContent = compareResult.runtime + ' ms';
-      document.getElementById('comp-astar-nodes').textContent = compareResult.explored;
-      document.getElementById('comp-astar-dist').textContent = (compareResult.distance * 1.8).toFixed(1) + ' km';
-      document.getElementById('comp-astar-eta').textContent = Math.round(compareResult.distance * 2.5) + ' min';
+      document.getElementById('comp-astar-time').textContent = compareResult.runtime_ms + ' ms';
+      document.getElementById('comp-astar-nodes').textContent = compareResult.nodes_explored;
+      document.getElementById('comp-astar-dist').textContent = compareResult.distance + ' km';
+      document.getElementById('comp-astar-eta').textContent = compareResult.travel_time + ' min';
 
-      document.getElementById('comp-dij-time').textContent = result.runtime + ' ms';
-      document.getElementById('comp-dij-nodes').textContent = result.explored;
+      document.getElementById('comp-dij-time').textContent = result.runtime_ms + ' ms';
+      document.getElementById('comp-dij-nodes').textContent = result.nodes_explored;
       document.getElementById('comp-dij-dist').textContent = distKm + ' km';
       document.getElementById('comp-dij-eta').textContent = totalTime + ' min';
 
-      const astarWin = compareResult.runtime < result.runtime;
-      document.getElementById('astar-winner').style.display = astarWin ? 'inline-block' : 'none';
-      document.getElementById('dijkstra-winner').style.display = astarWin ? 'none' : 'inline-block';
+      document.getElementById('astar-winner').style.display = winner === 'astar' ? 'inline-block' : 'none';
+      document.getElementById('dijkstra-winner').style.display = winner === 'dijkstra' ? 'inline-block' : 'none';
   }
 
   if (routeStepsEl) {
     routeStepsEl.innerHTML = '';
-    if (result.path) {
-        result.path.forEach((nodeId, i) => {
-          const node = cityNodes.find((n) => n.id === nodeId);
-          const step = document.createElement('div');
-          step.className = 'route-step';
-          let dotClass = 'step-dot';
-          if (i === 0) dotClass += ' start';
-          else if (i === result.path.length - 1) dotClass += ' end';
-          step.innerHTML = `<span class="${dotClass}"></span><span>${node ? node.label : nodeId}</span>`;
-          routeStepsEl.appendChild(step);
-          gsap.fromTo(step, { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: 0.5, delay: i * 0.12, ease: 'power3.out' });
-        });
-    }
+    const steps = result.steps || [];
+    steps.forEach((stepData, i) => {
+      const step = document.createElement('div');
+      step.className = 'route-step';
+      let label = stepData.target_name || stepData.source_name || 'Step';
+      if (stepData.source_name && stepData.target_name && stepData.source_name !== stepData.target_name) {
+        label = `${stepData.source_name} → ${stepData.target_name}`;
+      }
+      const dotClass = i === 0 ? 'step-dot start' : i === steps.length - 1 ? 'step-dot end' : 'step-dot';
+      step.innerHTML = `<span class="${dotClass}"></span><span>${label}</span>`;
+      routeStepsEl.appendChild(step);
+      gsap.fromTo(step, { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: 0.5, delay: i * 0.12, ease: 'power3.out' });
+    });
   }
 
   const modeBadge = document.getElementById('mode-badge');
@@ -862,9 +1095,16 @@ function drawEdges(ctx, w, h) {
 function drawMSTEdges(ctx, w, h) {
     mstEdges.forEach((edge) => {
         const curve = edgeCurves.get(`${edge.from}_${edge.to}`);
-        if (!curve) return;
-        const points = getCurvePointsAbs(curve, w, h);
-        if (!points || points.length === 0) return;
+        let points = curve ? getCurvePointsAbs(curve, w, h) : null;
+        if (!points || points.length === 0) {
+            const from = getNodeById(edge.from);
+            const to = getNodeById(edge.to);
+            if (!from || !to) return;
+            points = [
+                { x: nodeX(from, w), y: nodeY(from, h) },
+                { x: nodeX(to, w), y: nodeY(to, h) }
+            ];
+        }
 
         // Draw structural beams
         ctx.beginPath();
@@ -1210,6 +1450,7 @@ export function transitionToIntro() {
   const tl = gsap.timeline();
 
   setEmergencyMode(false);
+  stopHealthPolling();
   tl.to(dashboard, { opacity: 0, duration: 0.6, ease: 'power3.in', onComplete: () => dashboard.classList.remove('active') });
   tl.call(() => intro.classList.remove('hidden'));
   tl.to(intro, { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out' });

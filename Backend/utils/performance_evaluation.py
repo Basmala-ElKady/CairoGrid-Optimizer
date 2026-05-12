@@ -8,7 +8,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from Backend.algorithms.shortest_path.astar import AStarAlgorithm
-from Backend.algorithms.shortest_path.dijkstra import DijkstraAlgorithm
+from Backend.algorithms.shortest_path.dijkstra import Dijkstra
 
 
 def _safe_print(*args, debug=False, **kwargs):
@@ -65,7 +65,7 @@ def evaluate_algorithms(
     os.makedirs(output_dir, exist_ok=True)
 
     astar = AStarAlgorithm()
-    dijkstra = DijkstraAlgorithm()
+    dijkstra = Dijkstra()
 
     results: List[Dict] = []
 

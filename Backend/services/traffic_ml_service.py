@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import joblib
 import os
+from pathlib import Path
 
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.preprocessing import StandardScaler
@@ -17,8 +18,9 @@ from Backend.models.enums import TimePeriod
 logger = logging.getLogger(__name__)
 
 # config
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, "..", "data", "traffic_model.pkl")
+BASE_DIR = Path(__file__).resolve().parent
+MODEL_PATH = BASE_DIR.parent / "data" / "traffic_model.pkl"
+TRAFFIC_DATASET_PATH = BASE_DIR.parent / "data" / "processed" / "traffic_flow.csv"
 
 #time period encoding for ML features
 _PERIOD_ORDER = {
@@ -32,7 +34,7 @@ _PERIOD_ORDER = {
 # DATA LOADING 
 
 def load_traffic_dataset():
-    df = pd.read_csv("Backend/data/processed/traffic_flow.csv")
+    df = pd.read_csv(TRAFFIC_DATASET_PATH)
 
     rows = []
 
@@ -85,6 +87,10 @@ class TrafficMLService:
             ))
         ])
 
+    @property
+    def is_ready(self) -> bool:
+        return self._is_trained
+
     # Training
 
     def train(self) -> "TrafficMLService":
@@ -96,10 +102,6 @@ class TrafficMLService:
 
         X = df[["lag_1_flow", "lag_2_flow"]].values
         y = df["target_flow"].values
-
-        print(f"Training samples: {len(X)}")
-        print("sample X:", X[:5])
-        print("sample y:", y[:5])
 
         if len(X) == 0:
             raise RuntimeError("No training data available. Check your dataset.")
@@ -114,20 +116,41 @@ class TrafficMLService:
         if not self._is_trained:
             raise RuntimeError("Cannot save an untrained model.")
         
+        filepath = Path(filepath)
+        filepath.parent.mkdir(parents=True, exist_ok=True)
         joblib.dump(self._pipeline, filepath)
         logger.info(f"Model saved to {filepath}")
 
     def load_model(self, filepath: str = MODEL_PATH):
-        if os.path.exists(filepath):
+        filepath = Path(filepath)
+        if filepath.exists():
             self._pipeline = joblib.load(filepath)
             self._is_trained = True
             logger.info(f"Model loaded from {filepath}")
         else:
             logger.warning(f"No model found at {filepath}. Manual training required.")
 
+    def ensure_ready(self) -> "TrafficMLService":
+        if self._is_trained:
+            return self
+        try:
+            self.load_model()
+        except Exception:
+            logger.exception("Failed to load ML model; training a fresh model.")
+        if not self._is_trained:
+            self.train()
+            self.save_model()
+        return self
+
+    def predict_flow_from_lags(self, lag_1_flow: float, lag_2_flow: float) -> float:
+        self.ensure_ready()
+        X = np.array([[lag_1_flow, lag_2_flow]])
+        return float(self._pipeline.predict(X)[0])
+
     # Prediction
     # PREDICT NEXT FLOW 
     def predict_next_flow(self, edge):
+        self.ensure_ready()
 
         flows = list(edge.traffic.flows.values())
 
@@ -140,6 +163,20 @@ class TrafficMLService:
         X = np.array([[lag1, lag2]])
 
         return float(self._pipeline.predict(X)[0])
+
+    def forecast_edge_flows(self, edge: Edge, steps: int = 1) -> list[float]:
+        self.ensure_ready()
+        flows = list(edge.traffic.flows.values())
+        if len(flows) < 2:
+            return [0.0] * max(1, steps)
+
+        lag2, lag1 = flows[-2], flows[-1]
+        forecast: list[float] = []
+        for _ in range(max(1, steps)):
+            next_flow = self.predict_flow_from_lags(lag1, lag2)
+            forecast.append(next_flow)
+            lag2, lag1 = lag1, next_flow
+        return forecast
 
     # CONGESTION 
     def predict_congestion(self, edge):

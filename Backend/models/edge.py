@@ -1,16 +1,26 @@
 from Backend.models.traffic_profile import TrafficProfile
 from Backend.models.enums import TimePeriod
 
+
 class Edge:
     """Represents a road connection between two Nodes with dynamic weighting."""
     
-    def __init__(self, source_id: str, target_id: str, distance: float, 
-                 capacity: int, condition: int, traffic_profile: dict = None):
-        self.source_id = source_id
-        self.target_id = target_id
-        self.distance = distance
-        self.capacity = capacity
-        self.condition = condition
+    def __init__(
+        self,
+        source_id: str,
+        target_id: str,
+        distance: float,
+        capacity: int,
+        condition: int,
+        traffic_profile: dict = None,
+        metadata: dict | None = None,
+    ):
+        self.source_id = str(source_id)
+        self.target_id = str(target_id)
+        self.distance = float(distance)
+        self.capacity = int(capacity)
+        self.condition = int(condition)
+        self.metadata = metadata or {}
         
         # Initialize the TrafficProfile object
         self.traffic = TrafficProfile()

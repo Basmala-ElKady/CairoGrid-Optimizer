@@ -42,8 +42,8 @@ def main():
     # Build the unified Transport Graph (Bidirectional by default)
     graph = GraphBuilder.build_graph(all_nodes, all_edges)
     
-    print(f"✅ Loaded {len(all_nodes)} nodes ({len(nodes_districts)} districts, {len(nodes_facilities)} facilities).")
-    print(f"✅ Loaded {len(all_edges)} road segments with traffic profiles.")
+    print(f"Loaded {len(all_nodes)} nodes ({len(nodes_districts)} districts, {len(nodes_facilities)} facilities).")
+    print(f"Loaded {len(all_edges)} road segments with traffic profiles.")
 
     # 2. INFRASTRUCTURE PLANNING (MST)
     print("\n[2/6] Infrastructure Planning (Prim's MST)...")
@@ -52,16 +52,16 @@ def main():
     planning_result = planning_service.plan_expansion(all_edges, node_map)
     mst_edges = planning_result["result"]["edges"]
     total_dist = planning_result["result"]["cost"]
-    print(f"✅ MST calculated with {len(mst_edges)} core infrastructure segments.")
-    print(f"✅ Total Construction Distance: {total_dist:.2f} km")
+    print(f"MST calculated with {len(mst_edges)} core infrastructure segments.")
+    print(f"Total Construction Distance: {total_dist:.2f} km")
 
     # 3. TRAFFIC CONTROL (Greedy)
     print("\n[3/6] Traffic Control Optimization (Greedy Signal Plan)...")
     traffic_service = TrafficService(graph)
     # Generate optimized signal plan for Morning Peak traffic
     signal_plan_result = traffic_service.generate_signal_plan(graph, TimePeriod.MORNING_PEAK)
-    print(f"✅ Signal plan generated for {len(signal_plan_result['signal_plan'])} intersections.")
-    print(f"✅ Global Congestion Index: {signal_plan_result['metadata']['global_congestion_index']:.3f}")
+    print(f"Signal plan generated for {len(signal_plan_result['signal_plan'])} intersections.")
+    print(f"Global Congestion Index: {signal_plan_result['metadata']['global_congestion_index']:.3f}")
 
     # 4. PUBLIC TRANSIT (DP)
     print("\n[4/6] Public Transit Scheduling (DP Optimization)...")
@@ -80,7 +80,7 @@ def main():
     ]
     # Optimize transit capacity and timing using Dynamic Programming
     transit_result = transit_service.optimize(schedule_data, resource_data, capacity=12)
-    print(f"✅ Optimized transit schedule covering {transit_result['metadata']['total_passengers_covered']} passengers.")
+    print(f"Optimized transit schedule covering {transit_result['metadata']['total_passengers_covered']} passengers.")
 
     # 5. EMERGENCY ROUTING (A*)
     print("\n[5/6] Emergency Routing (A* Algorithm)...")
@@ -98,9 +98,9 @@ def main():
         
         if emergency_result["path"]:
             hospital_name = emergency_result["metadata"].get("hospital_name", "the nearest hospital")
-            print(f"✅ Emergency route found from '{start_node_name}' ({start_node_id}) to {hospital_name}.")
-            print(f"✅ Optimized Route: {' -> '.join(emergency_result['path'])}")
-            print(f"✅ Estimated Travel Time: {emergency_result['cost']:.2f} minutes")
+            print(f"Emergency route found from '{start_node_name}' ({start_node_id}) to {hospital_name}.")
+            print(f"Optimized Route: {' -> '.join(emergency_result['path'])}")
+            print(f"Estimated Travel Time: {emergency_result['cost']:.2f} minutes")
         else:
             print(f"⚠️ Warning: No emergency route found from '{start_node_name}' to any hospital.")
 
@@ -122,10 +122,10 @@ def main():
         )
         
         if route_result["path"]:
-            print(f"✅ Shortest route found from '{start_node.name}' to '{end_node.name}'.")
-            print(f"✅ Dijkstra Path: {' -> '.join(route_result['path'])}")
-            print(f"✅ Total Distance: {route_result['cost']:.2f} km")
-            print(f"✅ Nodes Explored: {route_result.get('nodes_explored', 'N/A')}")
+            print(f"Shortest route found from '{start_node.name}' to '{end_node.name}'.")
+            print(f"Dijkstra Path: {' -> '.join(route_result['path'])}")
+            print(f"Total Distance: {route_result['cost']:.2f} km")
+            print(f"Nodes Explored: {route_result.get('nodes_explored', 'N/A')}")
         else:
             print(f"⚠️ Warning: No shortest path found between '{start_node.name}' and '{end_node.name}'.")
 

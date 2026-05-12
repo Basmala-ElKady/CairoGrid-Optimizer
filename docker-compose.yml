@@ -1,22 +1,33 @@
-version: '3.8'
-
 services:
-  # Python Backend / Simulation Service
   backend:
     build:
       context: .
       dockerfile: Dockerfile.backend
-    volumes:
-      - .:/app
+    ports:
+      - "8000:8000"
     environment:
       - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
 
-  # Frontend Nginx Service
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
     ports:
       - "8080:80"
-    volumes:
-      - ./Frontend:/usr/share/nginx/html
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped

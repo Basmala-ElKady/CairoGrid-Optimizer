@@ -11,17 +11,17 @@
 
 import {
   initScene, getCamera, getModelGroup, getLights, getAlive,
-} from './three-scene.js';
+} from './three-scene.js?v=20260512-api-sync';
 import {
   initScrollSystem, destroyScrollSystem, playIntroAnimations,
-} from './scroll-system.js';
+} from './scroll-system.js?v=20260512-api-sync';
 import {
   initMouseEffects,
   setMouseEffectsEnabled,
   setModelInteraction,
-} from './mouse-effects.js';
-import { initEnvironment } from './environment.js';
-import { transitionToDashboard, transitionToIntro } from './ui.js';
+} from './mouse-effects.js?v=20260512-api-sync';
+import { initEnvironment } from './environment.js?v=20260512-api-sync';
+import { transitionToDashboard, transitionToIntro } from './ui.js?v=20260512-api-sync';
 
 // ── Force scroll to top on every load/refresh ──
 window.addEventListener('beforeunload', () => {
@@ -138,7 +138,7 @@ function startCinematicIntro() {
   const camera = getCamera();
   
   // Lazy Load the model now
-  import('./three-scene.js').then(mod => {
+  import('./three-scene.js?v=20260512-api-sync').then(mod => {
     mod.loadModel();
   });
 

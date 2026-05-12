@@ -14,10 +14,10 @@ class TrafficService:
     3. Congestion index calculation
     """
 
-    def __init__(self, graph):
+    def __init__(self, graph, ml_service: TrafficMLService | None = None):
         self.greedy = TrafficSignalOptimizer()
         self.emergency = EmergencyPrioritySystem()
-        self.ml = TrafficMLService(graph).train()
+        self.ml = ml_service or TrafficMLService(graph).ensure_ready()
 
     # MAIN PIPELINE
 
