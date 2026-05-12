@@ -89,27 +89,13 @@ class EmergencyService:
 
         print(f"[DEBUG] EmergencyService: Running A* to {hospital_id}", flush=True)
         
-        # Calculate live congestion index if not provided
-        if congestion_index is None:
-            period = CostEvaluator.map_time_to_period(current_time) if current_time is not None else TimePeriod.NIGHT
-            congestion_index = self.traffic_service.calculate_congestion_index(self.graph, period)
-            print(f"[DEBUG] EmergencyService: Calculated live congestion index for {period.value} is {congestion_index}", flush=True)
-        else:
-            print(f"[DEBUG] EmergencyService: Using provided congestion index {congestion_index}", flush=True)
-
-        # 2. run A* with single goal
-        # Emergency vehicles get 20% speed boost globally (base_emergency_multiplier=0.8)
-        # Plus optional additional discount at intersections via intersection_priority
-        result = self.astar.run(
-            graph=self.graph,
+        # 2. run A* via shared logic
+        result = self.get_route(
             start_node=start_node,
             end_node=hospital_id,
-            initial_time=current_time,
+            current_time=current_time,
             is_emergency=is_emergency,
-            base_emergency_multiplier=0.8 if is_emergency else 1.0,  # 20% faster when emergency
-            intersection_priority=self.intersection_priority,
-            congestion_index=congestion_index,
-            mode="realistic"
+            congestion_index=congestion_index
         )
 
         print(f"[DEBUG] EmergencyService: A* result - path_length={len(result.get('path', []))}, cost={result.get('cost', 'N/A')}", flush=True)
@@ -120,3 +106,27 @@ class EmergencyService:
         result["metadata"]["hospital_name"] = facilities[hospital_id]["name"]
 
         return result
+
+    def get_route(self, start_node: str, end_node: str, current_time: Optional[float] = None, is_emergency: bool = True, congestion_index: Optional[float] = None) -> Dict:
+        """
+        Runs A* routing using the working emergency logic.
+        This is the single source of truth for A* routing in the system.
+        """
+        # Calculate live congestion index if not provided
+        if congestion_index is None:
+            period = CostEvaluator.map_time_to_period(current_time) if current_time is not None else TimePeriod.NIGHT
+            congestion_index = self.traffic_service.calculate_congestion_index(self.graph, period)
+        
+        # Emergency vehicles get 20% speed boost globally (base_emergency_multiplier=0.8)
+        # Plus optional additional discount at intersections via intersection_priority
+        return self.astar.run(
+            graph=self.graph,
+            start_node=start_node,
+            end_node=end_node,
+            initial_time=current_time,
+            is_emergency=is_emergency,
+            base_emergency_multiplier=0.8 if is_emergency else 1.0,
+            intersection_priority=self.intersection_priority,
+            congestion_index=congestion_index,
+            mode="realistic"
+        )
