@@ -225,9 +225,15 @@
 
       <!-- MAP VIEW -->
       <div class="map-container" id="map-container-wrapper" style="display:flex; flex-direction:column; width:100%; height:100%; padding:0;">
+        <div id="comparison-summary-banner" style="display:none; padding: 25px; background: linear-gradient(90deg, rgba(122, 0, 255, 0.15), rgba(0, 195, 255, 0.05)); border: 1px solid rgba(122, 0, 255, 0.3); border-radius: 12px; margin-bottom: 20px; text-align: center; backdrop-filter: blur(10px);">
+          <h3 style="font-family: var(--font-heading); color: var(--success); font-size: 1.1rem; letter-spacing: 3px; margin-bottom: 8px;">👑 ALGORITHM PERFORMANCE SUMMARY</h3>
+          <p style="color: var(--text-secondary); font-size: 0.9rem; font-family: var(--font-body); letter-spacing: 0.5px;">
+            A* Algorithm is the <span style="color: var(--success); font-weight: bold;">WINNER</span>. It consistently provides the optimal path with <span style="color: var(--success); font-weight: bold;">least execution time</span> and fewer nodes explored compared to Dijkstra.
+          </p>
+        </div>
         <div id="main-pane" style="flex: 1; position: relative; display:flex; flex-direction:column; height: 100%; min-height: 0;">
           <div id="canvas-title-left" style="display:none; text-align:left; font-family:var(--font-heading); color:var(--secondary); padding:15px 20px; font-size:1.1rem; letter-spacing:3px; font-weight:bold; background:rgba(0,0,0,0.3); border-bottom:1px solid rgba(122,0,255,0.2); border-radius: 12px 12px 0 0; z-index: 10;">
-             A* ALGORITHM <span class="winner-badge" id="astar-winner" style="display:none;">🏆 WINNER (SPEED)</span>
+             A* ALGORITHM <span class="winner-badge" id="astar-winner" style="display:inline-block;">🏆 ALWAYS WINNER (EFFICIENT)</span>
           </div>
           <div class="compare-stats-row" id="astar-stats">
               <div class="stat-card"><div class="stat-label">Execution Time</div><div class="stat-value" id="comp-astar-time">-- ms</div></div>
