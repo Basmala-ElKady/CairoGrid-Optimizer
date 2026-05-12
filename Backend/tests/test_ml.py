@@ -1,4 +1,12 @@
 import pandas as pd
+import sys
+import os
+from pathlib import Path
+
+# Fix import path for running script directly
+ROOT = Path(__file__).resolve().parent.parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.append(str(ROOT))
 
 from Backend.graph.graph_builder import GraphBuilder
 from Backend.services.service_registry import get_ml_service
@@ -153,4 +161,8 @@ def test_ml_prediction():
     else:
         print(f"Traffic is DECREASING by {abs(diff):.3f}")
 
-    print("\n=========================================================\n")
+    print("\n=========================================================\n")
+
+
+if __name__ == "__main__":
+    test_ml_prediction()
