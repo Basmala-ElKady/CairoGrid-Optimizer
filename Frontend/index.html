@@ -142,24 +142,30 @@
   <!-- ============================================================
        DASHBOARD
        ============================================================ -->
-  <div id="dashboard">
-    <!-- Header -->
-    <header class="dash-header">
-      <div class="dash-logo">SCI:TRANSPORT</div>
-      <div class="dash-controls">
-        <div class="status-badge online">
-          <span class="badge-dot"></span>
-          LIVE
+  <div id="dashboard" style="overflow-y: auto; overflow-x: hidden;">
+    
+    <!-- Main 100vh Dashboard View -->
+    <div style="display: flex; flex-direction: column; min-height: 100vh;">
+      <!-- Header -->
+      <header class="dash-header">
+        <div class="dash-logo">SCI:TRANSPORT</div>
+        <div class="dash-controls">
+          <button class="btn-primary" id="ml-scroll-btn" style="padding: 8px 16px; font-size: 0.6rem; margin-right: 12px;">
+            ✨ Use ML Prediction
+          </button>
+          <div class="status-badge online" id="system-status">
+            <span class="badge-dot"></span>
+            ONLINE
+          </div>
+          <div class="dash-time" id="dash-clock">00:00:00</div>
+          <button class="btn-secondary" id="back-to-intro-btn">
+            ← Back
+          </button>
         </div>
-        <div class="dash-time" id="dash-clock">00:00:00</div>
-        <button class="btn-secondary" id="back-to-intro-btn">
-          ← Back
-        </button>
-      </div>
-    </header>
+      </header>
 
-    <!-- Body -->
-    <div class="dash-body">
+      <!-- Body -->
+      <div class="dash-body">
 
       <!-- INPUT PANEL -->
       <div class="dash-panel" id="input-panel">
@@ -195,14 +201,51 @@
           </select>
         </div>
 
+        <div class="form-group">
+          <label class="form-label" for="algo-select">Algorithm</label>
+          <select class="form-select" id="algo-select">
+            <option value="dijkstra" selected>Dijkstra</option>
+            <option value="greedy">Greedy (Traffic Opt)</option>
+            <option value="dp">Dynamic Programming (Transit)</option>
+            <option value="prim">Prim MST (Infra)</option>
+          </select>
+        </div>
+
         <button class="btn-primary" id="calc-route-btn" style="width:100%; margin-top: 12px;">
           <span>Calculate Route</span>
+        </button>
+        
+        <button class="btn-secondary" id="compare-btn" style="width:100%; margin-top: 12px; border-color: var(--secondary); color: var(--secondary);">
+          <span style="color: var(--secondary);">⚔️ Compare Dijkstra vs A*</span>
         </button>
       </div>
 
       <!-- MAP VIEW -->
-      <div class="map-container">
-        <canvas id="map-canvas"></canvas>
+      <div class="map-container" id="map-container-wrapper" style="display:flex; flex-direction:column; width:100%; height:100%; padding:0;">
+        <div id="main-pane" style="flex: 1; position: relative; display:flex; flex-direction:column; height: 100%; min-height: 0;">
+          <div id="canvas-title-left" style="display:none; text-align:left; font-family:var(--font-heading); color:var(--secondary); padding:15px 20px; font-size:1.1rem; letter-spacing:3px; font-weight:bold; background:rgba(0,0,0,0.3); border-bottom:1px solid rgba(122,0,255,0.2); border-radius: 12px 12px 0 0; z-index: 10;">
+             A* ALGORITHM <span class="winner-badge" id="astar-winner" style="display:none;">🏆 WINNER (SPEED)</span>
+          </div>
+          <div class="compare-stats-row" id="astar-stats">
+              <div class="stat-card"><div class="stat-label">Execution Time</div><div class="stat-value" id="comp-astar-time">-- ms</div></div>
+              <div class="stat-card"><div class="stat-label">Nodes Explored</div><div class="stat-value" id="comp-astar-nodes">--</div></div>
+              <div class="stat-card"><div class="stat-label">Route Distance</div><div class="stat-value" id="comp-astar-dist">-- km</div></div>
+              <div class="stat-card"><div class="stat-label">Travel Time</div><div class="stat-value" id="comp-astar-eta">-- min</div></div>
+          </div>
+          <canvas id="map-canvas" style="width: 100%; flex: 1;"></canvas>
+        </div>
+        <div id="compare-pane" style="flex: 1; position: relative; display:none; flex-direction:column; border-top:1px solid var(--border); height: 100%; min-height: 0;">
+          <div id="canvas-title-right" style="display:block; text-align:left; font-family:var(--font-heading); color:var(--primary); padding:15px 20px; font-size:1.1rem; letter-spacing:3px; font-weight:bold; background:rgba(0,0,0,0.3); border-bottom:1px solid rgba(0,195,255,0.2); border-radius: 12px 12px 0 0; z-index: 10;">
+             DIJKSTRA ALGORITHM <span class="winner-badge" id="dijkstra-winner" style="display:none;">🏆 WINNER (SPEED)</span>
+          </div>
+          <div class="compare-stats-row" id="dijkstra-stats">
+              <div class="stat-card"><div class="stat-label">Execution Time</div><div class="stat-value" id="comp-dij-time">-- ms</div></div>
+              <div class="stat-card"><div class="stat-label">Nodes Explored</div><div class="stat-value" id="comp-dij-nodes">--</div></div>
+              <div class="stat-card"><div class="stat-label">Route Distance</div><div class="stat-value" id="comp-dij-dist">-- km</div></div>
+              <div class="stat-card"><div class="stat-label">Travel Time</div><div class="stat-value" id="comp-dij-eta">-- min</div></div>
+          </div>
+          <canvas id="map-canvas-compare" style="width: 100%; flex: 1;"></canvas>
+        </div>
       </div>
 
       <!-- OUTPUT PANEL -->
@@ -232,10 +275,112 @@
           </div>
         </div>
 
+        <div class="stat-card" id="stat-runtime-card">
+          <div class="stat-label">Execution Time</div>
+          <div class="stat-value" id="stat-runtime">-- ms</div>
+        </div>
+
+        <div class="stat-card" id="stat-explored-card">
+          <div class="stat-label">Nodes Explored</div>
+          <div class="stat-value" id="stat-explored">--</div>
+        </div>
+
         <div id="mode-badge" style="margin-top: 16px; font-family: var(--font-heading); font-size: 0.7rem; letter-spacing: 2px; color: var(--primary);"></div>
 
         <div class="panel-title" style="margin-top: 24px;">Route Steps</div>
         <div id="route-steps"></div>
+
+        <button class="btn-secondary" id="gmaps-btn" style="width:100%; margin-top: 24px; display:none;">
+          <span style="display:flex; align-items:center; justify-content:center; gap:8px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+            Open in Google Maps
+          </span>
+        </button>
+      </div>
+    </div>
+  </div> <!-- End Main 100vh View -->
+    
+    <!-- ============================================================
+       AI / ML PREDICTION SECTION
+       ============================================================ -->
+    <div id="ai-section" style="display: none; opacity: 0; padding: 80px 40px; background: #030305; border-top: 1px solid var(--border); min-height: 80vh;">
+      <div style="max-width: 1200px; margin: 0 auto;">
+        <div style="text-align:center; margin-bottom: 50px;">
+          <span class="section-label fade-in-up" style="color: var(--secondary); text-shadow: 0 0 20px var(--secondary-glow);">Advanced AI Analytics</span>
+          <h2 class="section-title fade-in-up" style="margin-top: 10px;">Traffic Prediction Engine</h2>
+          <p style="color: var(--text-secondary); max-width: 600px; margin: 16px auto 0; font-size: 0.95rem;">Harness the power of machine learning to forecast traffic conditions, identify congestion risks, and generate proactive routing recommendations before gridlock occurs.</p>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 40px; align-items: start;">
+          <!-- AI Input Panel -->
+          <div class="glass-card" style="border-color: rgba(122, 0, 255, 0.2); box-shadow: 0 10px 40px rgba(122,0,255,0.05);">
+            <h3 class="panel-title" style="color: var(--secondary); margin-bottom: 24px;">Prediction Parameters</h3>
+            
+            <div class="form-group">
+              <label class="form-label">Origin</label>
+              <select class="form-select ai-route-select" id="ai-source-select" style="background-color: rgba(255,255,255,0.02);">
+                <option value="sheikh_zayed" selected>Sheikh Zayed</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Destination</label>
+              <select class="form-select ai-route-select" id="ai-dest-select" style="background-color: rgba(255,255,255,0.02);">
+                <option value="nasr_city" selected>Nasr City</option>
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Prediction Horizon</label>
+              <select class="form-select" id="ai-horizon-select" style="background-color: rgba(255,255,255,0.02);">
+                <option value="15">15 Minutes</option>
+                <option value="30" selected>30 Minutes</option>
+                <option value="60">1 Hour</option>
+                <option value="120">2 Hours</option>
+              </select>
+            </div>
+            
+            <button class="btn-primary" id="run-prediction-btn" style="width: 100%; margin-top: 24px; background: linear-gradient(135deg, var(--secondary), #4a00e0); box-shadow: 0 0 20px rgba(122,0,255,0.3);">
+              <span>Generate Forecast</span>
+            </button>
+          </div>
+          
+          <!-- AI Results Panel -->
+          <div class="glass-card" id="ai-results-panel" style="display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 400px; border-color: rgba(122, 0, 255, 0.1); background: rgba(5, 5, 8, 0.6);">
+            
+            <div id="ai-placeholder" style="color: var(--text-muted); font-family: var(--font-heading); letter-spacing: 2px; text-align: center;">
+              <div style="font-size: 3rem; margin-bottom: 20px; opacity: 0.5;">🧠</div>
+              AWAITING PARAMETERS
+            </div>
+            
+            <div id="ai-output" style="display: none; width: 100%; padding: 10px;">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px;">
+                <div class="stat-card" style="background: rgba(255, 59, 59, 0.05); border-color: rgba(255, 59, 59, 0.2); text-align: center; padding: 24px;">
+                  <div class="stat-label" style="color: var(--accent); margin-bottom: 8px;">Predicted Congestion</div>
+                  <div class="stat-value" id="ai-congestion-val" style="color: var(--accent); font-size: 1.8rem;">SEVERE (87%)</div>
+                </div>
+                <div class="stat-card" style="background: rgba(0, 195, 255, 0.05); border-color: rgba(0, 195, 255, 0.2); text-align: center; padding: 24px;">
+                  <div class="stat-label" style="color: var(--primary); margin-bottom: 8px;">Est. Clearing Time</div>
+                  <div class="stat-value" id="ai-time-val" style="color: var(--primary); font-size: 1.8rem;">+45 Mins</div>
+                </div>
+              </div>
+              
+              <h4 style="font-family: var(--font-heading); color: var(--text); font-size: 0.8rem; margin-bottom: 12px; letter-spacing: 1px;">AI ANALYSIS</h4>
+              <div style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 12px; border-left: 3px solid var(--secondary); margin-bottom: 24px;">
+                <p style="color: var(--text-secondary); font-size: 0.95rem; line-height: 1.6;" id="ai-analysis-text">
+                  Analysis complete. High congestion expected in Nasr City in 30 minutes due to accumulating traffic patterns from the Eastern corridors.
+                </p>
+              </div>
+              
+              <h4 style="font-family: var(--font-heading); color: var(--text); font-size: 0.8rem; margin-bottom: 12px; letter-spacing: 1px;">RECOMMENDATION</h4>
+              <div style="background: rgba(0, 255, 136, 0.05); padding: 20px; border-radius: 12px; border-left: 3px solid var(--success);">
+                <p id="ai-rec-text" style="color: var(--success); font-size: 0.95rem; font-weight: 500; line-height: 1.6;">
+                  ✓ Route commercial transit through Heliopolis alternative. Delay standard departures by 20 minutes to avoid peak gridlock.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
