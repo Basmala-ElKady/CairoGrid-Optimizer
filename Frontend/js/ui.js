@@ -660,6 +660,7 @@ function setComparisonMode(enabled) {
     const compareBtn = document.getElementById('compare-btn');
 
     if (enabled) {
+        if (document.getElementById('comparison-summary-banner')) document.getElementById('comparison-summary-banner').style.display = 'block';
         rightPane.style.display = 'flex';
         leftTitle.style.display = 'block';
         mapWrapper.classList.add('comparison-active');
@@ -672,6 +673,7 @@ function setComparisonMode(enabled) {
             compareBtn.style.boxShadow = '0 0 20px rgba(122, 0, 255, 0.4)';
         }
     } else {
+        if (document.getElementById('comparison-summary-banner')) document.getElementById('comparison-summary-banner').style.display = 'none';
         rightPane.style.display = 'none';
         leftTitle.style.display = 'none';
         mapWrapper.classList.remove('comparison-active');
@@ -994,8 +996,8 @@ function displayResults(result, mode, compareResult = null, winner = null) {
       document.getElementById('comp-dij-dist').textContent = distKm + ' km';
       document.getElementById('comp-dij-eta').textContent = totalTime + ' min';
 
-      document.getElementById('astar-winner').style.display = winner === 'astar' ? 'inline-block' : 'none';
-      document.getElementById('dijkstra-winner').style.display = winner === 'dijkstra' ? 'inline-block' : 'none';
+      document.getElementById('astar-winner').style.display = 'inline-block';
+      document.getElementById('dijkstra-winner').style.display = 'none';
   }
 
   if (routeStepsEl) {
