@@ -135,8 +135,8 @@ class TrafficMLService:
             return self
         try:
             self.load_model()
-        except Exception:
-            logger.exception("Failed to load ML model; training a fresh model.")
+        except Exception as e:
+            logger.warning(f"Failed to load ML model ({e}); training a fresh model.")
         if not self._is_trained:
             self.train()
             self.save_model()
@@ -167,7 +167,7 @@ class TrafficMLService:
 
     def forecast_edge_flows(self, edge: Edge, steps: int = 1) -> list[float]:
         self.ensure_ready()
-        flows = list(edge.traffic.flows.values())
+        flows = list(edge.traffic.flow_data.values())
         if len(flows) < 2:
             return [0.0] * max(1, steps)
 
