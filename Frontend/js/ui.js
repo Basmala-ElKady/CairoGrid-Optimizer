@@ -46,12 +46,94 @@ let graphLoadingPromise = null;
 let healthPollId = null;
 let dashboardEventsBound = false;
 let mapLoopStarted = false;
+let labelLayoutCache = new Map();
 
 // Padding for graph display
 const PAD = 25;
+const NODE_LAYOUT_MAP = Object.freeze({
+  '7': { x: 0.1, y: 0.47, region: 'west', label: { dx: -18, dy: -36, align: 'right', baseline: 'alphabetic' } },
+  '15': { x: 0.11, y: 0.26, region: 'west', label: { dx: -16, dy: -16, align: 'right', baseline: 'middle' } },
+  'F7': { x: 0.19, y: 0.15, region: 'west', label: { dx: 0, dy: -34, align: 'center', baseline: 'alphabetic' } },
+  '8': { x: 0.2, y: 0.66, region: 'west', label: { dx: -18, dy: 22, align: 'right', baseline: 'top' } },
+  '9': { x: 0.34, y: 0.4, region: 'central_west', label: { dx: -18, dy: -26, align: 'right', baseline: 'alphabetic' } },
+  '10': { x: 0.33, y: 0.55, region: 'central_west', label: { dx: -18, dy: 22, align: 'right', baseline: 'top' } },
+  '6': { x: 0.43, y: 0.31, region: 'central_west', label: { dx: 0, dy: -34, align: 'center', baseline: 'alphabetic' } },
+  'F3': { x: 0.31, y: 0.73, region: 'central_west', label: { dx: 0, dy: 26, align: 'center', baseline: 'top' } },
+  '3': { x: 0.49, y: 0.48, region: 'center', label: { dx: 0, dy: -38, align: 'center', baseline: 'alphabetic' } },
+  'F2': { x: 0.54, y: 0.26, region: 'north', label: { dx: 16, dy: -18, align: 'left', baseline: 'middle' } },
+  'F5': { x: 0.46, y: 0.59, region: 'center', label: { dx: 16, dy: 26, align: 'left', baseline: 'top' } },
+  'F9': { x: 0.5, y: 0.71, region: 'center', label: { dx: 18, dy: 18, align: 'left', baseline: 'top' } },
+  '11': { x: 0.54, y: 0.12, region: 'north', label: { dx: 0, dy: -32, align: 'center', baseline: 'alphabetic' } },
+  '2': { x: 0.68, y: 0.44, region: 'east_central', label: { dx: 18, dy: -18, align: 'left', baseline: 'middle' } },
+  'F6': { x: 0.62, y: 0.32, region: 'east_central', label: { dx: 18, dy: -14, align: 'left', baseline: 'middle' } },
+  'F4': { x: 0.61, y: 0.61, region: 'east_central', label: { dx: 18, dy: 18, align: 'left', baseline: 'top' } },
+  '5': { x: 0.78, y: 0.24, region: 'east', label: { dx: 18, dy: -14, align: 'left', baseline: 'middle' } },
+  'F1': { x: 0.91, y: 0.14, region: 'east', label: { dx: 0, dy: -30, align: 'center', baseline: 'alphabetic' } },
+  '4': { x: 0.83, y: 0.43, region: 'east', label: { dx: 18, dy: -20, align: 'left', baseline: 'middle' } },
+  'F8': { x: 0.79, y: 0.59, region: 'east', label: { dx: 0, dy: 26, align: 'center', baseline: 'top' } },
+  '14': { x: 0.9, y: 0.34, region: 'east', label: { dx: 18, dy: 18, align: 'left', baseline: 'top' } },
+  '13': { x: 0.95, y: 0.7, region: 'east', label: { dx: 0, dy: 26, align: 'center', baseline: 'top' } },
+  '1': { x: 0.57, y: 0.83, region: 'south', label: { dx: -18, dy: 24, align: 'right', baseline: 'top' } },
+  'F10': { x: 0.64, y: 0.91, region: 'south', label: { dx: 18, dy: 18, align: 'left', baseline: 'top' } },
+  '12': { x: 0.61, y: 0.98, region: 'south', label: { dx: -18, dy: -18, align: 'right', baseline: 'middle' } },
+});
+const LAYOUT_PADDING = Object.freeze({
+  single: { x: 78, y: 64 },
+  compare: { x: 156, y: 120 },
+});
+const TYPE_COLORS = Object.freeze({
+  district: '#d7deeb',
+  facility: '#7ad4ff',
+  hub: '#00ff88',
+  hospital: '#ff6a6a',
+});
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
 
 function getNodeById(nodeId) {
   return cityNodes.find((node) => node.id === nodeId);
+}
+
+function getEdgeKey(source, target) {
+  return [source, target].sort().join('__');
+}
+
+function getLayoutPadding(width, height) {
+  const base = comparisonMode ? LAYOUT_PADDING.compare : LAYOUT_PADDING.single;
+  return {
+    x: Math.max(base.x, Math.round(width * (comparisonMode ? 0.09 : 0.06))),
+    y: Math.max(base.y, Math.round(height * (comparisonMode ? 0.09 : 0.07))),
+  };
+}
+
+function getNodeLabelPreference(node) {
+  return node.labelPreference || {
+    dx: node.x >= 0.72 ? 18 : node.x <= 0.25 ? -18 : 0,
+    dy: node.y >= 0.75 ? 22 : -34,
+    align: node.x >= 0.72 ? 'left' : node.x <= 0.25 ? 'right' : 'center',
+    baseline: node.y >= 0.75 ? 'top' : 'alphabetic',
+  };
+}
+
+function applyCuratedLayout(node) {
+  const preset = NODE_LAYOUT_MAP[node.id];
+  if (!preset) {
+    return {
+      ...node,
+      region: node.type || 'district',
+      labelPreference: getNodeLabelPreference(node),
+    };
+  }
+
+  return {
+    ...node,
+    x: preset.x,
+    y: preset.y,
+    region: preset.region,
+    labelPreference: preset.label,
+  };
 }
 
 function getStoredApiBase() {
@@ -215,7 +297,7 @@ async function loadGraphData(forceRefresh = false) {
 
   graphLoadingPromise = (async () => {
     const graph = await apiRequest('/graph');
-    cityNodes = graph.nodes.map((node) => ({
+    cityNodes = graph.nodes.map((node) => applyCuratedLayout({
       id: node.id,
       label: node.name,
       type: node.type,
@@ -232,6 +314,7 @@ async function loadGraphData(forceRefresh = false) {
       metadata: edge.metadata || {},
       traffic: 0.3,
     }));
+    labelLayoutCache.clear();
     updateEdgeTraffic();
     populateSelectors();
     generateCurves();
@@ -282,6 +365,7 @@ function stopHealthPolling() {
 }
 
 function handleDashboardResize() {
+  labelLayoutCache.clear();
   resizeMap();
   generateCurves();
 }
@@ -325,57 +409,69 @@ function resizeMap() {
   }
 }
 
-// ── Node position helpers (with padding) ──────
-function getNonLinearPos(val, spreadMulti) {
-   const d = val - 0.5;
-   return 0.5 + Math.sign(d) * Math.pow(Math.abs(d), 0.6) * spreadMulti;
-}
-
 function nodeX(node, w) {
-  const pad = comparisonMode ? 140 : PAD; 
-  const spreadMulti = comparisonMode ? 0.82 : 0.76;
-  const nx = getNonLinearPos(node.x, spreadMulti);
+  const pad = getLayoutPadding(w, 0).x;
+  const nx = clamp(typeof node.x === 'number' ? node.x : 0.5, 0, 1);
   return pad + nx * (w - pad * 2);
 }
 
 function nodeY(node, h) {
-  const pad = comparisonMode ? 120 : PAD;
-  const spreadMulti = comparisonMode ? 0.82 : 0.76;
-  const ny = getNonLinearPos(node.y, spreadMulti);
+  const pad = getLayoutPadding(0, h).y;
+  const ny = clamp(typeof node.y === 'number' ? node.y : 0.5, 0, 1);
   return pad + ny * (h - pad * 2);
 }
 
 // ── Curve Generation — same logic for all ──────
 function generateCurves() {
   if (!mapCanvas) return;
-  // Use a base width/height to compute abstract curves, then scale during draw
-  const w = 800, h = 600; 
   edgeCurves.clear();
+  labelLayoutCache.clear();
 
   cityEdges.forEach((edge, index) => {
     const from = cityNodes.find((n) => n.id === edge.from);
     const to = cityNodes.find((n) => n.id === edge.to);
     if (!from || !to) return;
 
-    // We store abstract coordinates [0..1] points instead of absolute pixel points
     const x1 = from.x, y1 = from.y;
     const x2 = to.x, y2 = to.y;
-
-    // Compute control point (mid-point + offset)
-    const mx = (x1 + x2) / 2;
-    const my = (y1 + y2) / 2;
     const dx = x2 - x1;
     const dy = y2 - y1;
-    const len = Math.sqrt(dx * dx + dy * dy);
-    const offset = len * 0.15;
-    const cpx = mx + (-dy / len) * offset;
-    const cpy = my + (dx / len) * offset;
+    const len = Math.hypot(dx, dy) || 0.001;
+    const nx = -dy / len;
+    const ny = dx / len;
+    const sign = (getEdgeKey(edge.from, edge.to).split('').reduce((sum, char) => sum + char.charCodeAt(0), 0) % 2 === 0) ? 1 : -1;
+    const bend = clamp(0.025 + len * 0.12, 0.035, 0.12);
+
+    let c1x;
+    let c1y;
+    let c2x;
+    let c2y;
+
+    if (Math.abs(dx) > 0.34) {
+      const routeY = clamp((y1 + y2) / 2 + sign * bend * 0.75, 0.1, 0.92);
+      c1x = x1 + dx * 0.28;
+      c2x = x1 + dx * 0.72;
+      c1y = routeY;
+      c2y = routeY;
+    } else if (Math.abs(dy) > 0.26) {
+      const routeX = clamp((x1 + x2) / 2 + sign * bend * 0.55, 0.08, 0.94);
+      c1x = routeX;
+      c2x = routeX;
+      c1y = y1 + dy * 0.3;
+      c2y = y1 + dy * 0.7;
+    } else {
+      c1x = x1 + dx * 0.3 + nx * bend * sign;
+      c1y = y1 + dy * 0.3 + ny * bend * sign;
+      c2x = x1 + dx * 0.7 + nx * bend * sign;
+      c2y = y1 + dy * 0.7 + ny * bend * sign;
+    }
 
     const curve = new THREE.CatmullRomCurve3([
       new THREE.Vector3(x1, y1, 0),
-      new THREE.Vector3(cpx, cpy, 0),
+      new THREE.Vector3(c1x, c1y, 0),
+      new THREE.Vector3(c2x, c2y, 0),
       new THREE.Vector3(x2, y2, 0)
-    ], false, 'catmullrom', 0.5);
+    ], false, 'catmullrom', 0.22);
 
     curve.points100 = curve.getPoints(100);
     edgeCurves.set(`${edge.from}_${edge.to}`, curve);
@@ -999,6 +1095,132 @@ function createTrafficParticles() {
   });
 }
 
+function getActiveEdgeKeys() {
+  const keys = new Set();
+  const paths = [currentPath, currentPathCompare];
+  paths.forEach((path) => {
+    for (let i = 0; i < path.length - 1; i++) {
+      keys.add(getEdgeKey(path[i], path[i + 1]));
+    }
+  });
+  return keys;
+}
+
+function drawCityAura(ctx, w, h) {
+  const fields = [
+    { x: 0.18, y: 0.38, radius: 0.28, color: '0,195,255', alpha: 0.09 },
+    { x: 0.48, y: 0.46, radius: 0.25, color: '122,0,255', alpha: 0.07 },
+    { x: 0.79, y: 0.36, radius: 0.27, color: '0,195,255', alpha: 0.08 },
+    { x: 0.58, y: 0.86, radius: 0.18, color: '255,170,68', alpha: 0.06 },
+  ];
+
+  fields.forEach((field) => {
+    const gx = field.x * w;
+    const gy = field.y * h;
+    const gradient = ctx.createRadialGradient(gx, gy, 0, gx, gy, Math.min(w, h) * field.radius);
+    gradient.addColorStop(0, `rgba(${field.color}, ${field.alpha})`);
+    gradient.addColorStop(0.55, `rgba(${field.color}, ${field.alpha * 0.35})`);
+    gradient.addColorStop(1, `rgba(${field.color}, 0)`);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, w, h);
+  });
+}
+
+function createLabelPlacement(node, ctx, w, h, fontSize) {
+  const pref = getNodeLabelPreference(node);
+  const anchorX = nodeX(node, w);
+  const anchorY = nodeY(node, h);
+  const textX = anchorX + pref.dx;
+  const textY = anchorY + pref.dy;
+  const width = ctx.measureText(node.label).width;
+  const height = fontSize + 8;
+
+  const placement = {
+    nodeId: node.id,
+    anchorX,
+    anchorY,
+    textX,
+    textY,
+    width,
+    height,
+    align: pref.align,
+    baseline: pref.baseline,
+    fontSize,
+  };
+  updateLabelBounds(placement);
+  return placement;
+}
+
+function updateLabelBounds(placement) {
+  let left = placement.textX;
+  if (placement.align === 'center') left -= placement.width / 2;
+  if (placement.align === 'right') left -= placement.width;
+
+  let top = placement.textY;
+  if (placement.baseline === 'alphabetic') top -= placement.height;
+  else if (placement.baseline === 'middle') top -= placement.height / 2;
+
+  placement.left = left - 12;
+  placement.top = top - 7;
+  placement.right = left + placement.width + 12;
+  placement.bottom = top + placement.height + 7;
+}
+
+function shiftPlacement(placement, dx, dy) {
+  placement.textX += dx;
+  placement.textY += dy;
+  updateLabelBounds(placement);
+}
+
+function buildLabelPlacements(ctx, w, h) {
+  const cacheKey = `${comparisonMode ? 'compare' : 'single'}:${w}x${h}:${cityNodes.length}`;
+  if (labelLayoutCache.has(cacheKey)) {
+    return labelLayoutCache.get(cacheKey);
+  }
+
+  const fontSize = comparisonMode ? 15 : 13;
+  ctx.save();
+  ctx.font = `600 ${fontSize}px "Orbitron", monospace`;
+
+  const placements = cityNodes
+    .map((node) => createLabelPlacement(node, ctx, w, h, fontSize))
+    .sort((a, b) => a.top - b.top);
+
+  const minGap = comparisonMode ? 16 : 12;
+  for (let iteration = 0; iteration < 6; iteration++) {
+    for (let i = 0; i < placements.length; i++) {
+      for (let j = i + 1; j < placements.length; j++) {
+        const a = placements[i];
+        const b = placements[j];
+        const overlapX = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+        const overlapY = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+        if (overlapX > 0 && overlapY > 0) {
+          const direction = a.textY <= b.textY ? 1 : -1;
+          const push = overlapY / 2 + minGap / 2;
+          shiftPlacement(a, 0, -push * direction);
+          shiftPlacement(b, 0, push * direction);
+        }
+      }
+    }
+  }
+
+  placements.forEach((placement) => {
+    const overflowLeft = 18 - placement.left;
+    const overflowRight = placement.right - (w - 18);
+    const overflowTop = 18 - placement.top;
+    const overflowBottom = placement.bottom - (h - 18);
+    if (overflowLeft > 0) shiftPlacement(placement, overflowLeft, 0);
+    if (overflowRight > 0) shiftPlacement(placement, -overflowRight, 0);
+    if (overflowTop > 0) shiftPlacement(placement, 0, overflowTop);
+    if (overflowBottom > 0) shiftPlacement(placement, 0, -overflowBottom);
+  });
+
+  const placementMap = new Map(placements.map((placement) => [placement.nodeId, placement]));
+  ctx.restore();
+  labelLayoutCache.set(cacheKey, placementMap);
+  return placementMap;
+}
+
 // ══════════════════════════════════════════════
 // MAP RENDER — IMPROVED
 // ══════════════════════════════════════════════
@@ -1021,6 +1243,7 @@ function startMapLoop() {
 function renderCanvas(canvas, ctx, path, isLeft) {
     const w = canvas.width, h = canvas.height;
     ctx.clearRect(0, 0, w, h);
+    drawCityAura(ctx, w, h);
     drawGrid(ctx, w, h);
     
     if (currentAlgorithm === 'prim') {
@@ -1040,9 +1263,9 @@ function renderCanvas(canvas, ctx, path, isLeft) {
 }
 
 function drawGrid(ctx, w, h) {
-  ctx.strokeStyle = 'rgba(0, 195, 255, 0.02)';
-  ctx.lineWidth = 0.5;
-  const spacing = 40;
+  ctx.strokeStyle = 'rgba(0, 195, 255, 0.018)';
+  ctx.lineWidth = 0.6;
+  const spacing = comparisonMode ? 52 : 46;
   for (let x = 0; x < w; x += spacing) {
     ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
   }
@@ -1053,6 +1276,9 @@ function drawGrid(ctx, w, h) {
 
 // ── EDGES — same smooth curves for background ──
 function drawEdges(ctx, w, h) {
+  const activeEdgeKeys = getActiveEdgeKeys();
+  const hasActiveRoute = activeEdgeKeys.size > 0;
+
   cityEdges.forEach((edge) => {
     const curve = edgeCurves.get(`${edge.from}_${edge.to}`);
     if (!curve) return;
@@ -1061,6 +1287,9 @@ function drawEdges(ctx, w, h) {
     if (!points || points.length === 0) return;
 
     const t = currentAlgorithm === 'greedy' ? (edge.traffic || 0.3) * 1.5 : (edge.traffic || 0.3); // Exaggerate greedy
+    const isRouteEdge = activeEdgeKeys.has(getEdgeKey(edge.from, edge.to));
+    const dimMultiplier = hasActiveRoute && !isRouteEdge ? 0.45 : 1;
+    const glowBoost = isRouteEdge ? 1.25 : 1;
     let r, g, b;
     if (t < 0.5) {
       r = Math.round(t * 2 * 255);
@@ -1076,8 +1305,8 @@ function drawEdges(ctx, w, h) {
     ctx.beginPath();
     ctx.moveTo(points[0].x, points[0].y);
     points.forEach(p => ctx.lineTo(p.x, p.y));
-    ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${0.06 + t * 0.06})`;
-    ctx.lineWidth = 6 + t * 4;
+    ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${(0.04 + t * 0.05) * dimMultiplier * glowBoost})`;
+    ctx.lineWidth = (5 + t * 3.5) * (isRouteEdge ? 1.05 : 1);
     ctx.lineCap = 'round';
     ctx.stroke();
 
@@ -1085,8 +1314,8 @@ function drawEdges(ctx, w, h) {
     ctx.beginPath();
     ctx.moveTo(points[0].x, points[0].y);
     points.forEach(p => ctx.lineTo(p.x, p.y));
-    ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${0.2 + t * 0.25})`;
-    ctx.lineWidth = 1.5 + t * 2;
+    ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${(0.14 + t * 0.16) * dimMultiplier * glowBoost})`;
+    ctx.lineWidth = (1.2 + t * 1.5) * (isRouteEdge ? 1.2 : 1);
     ctx.lineCap = 'round';
     ctx.stroke();
   });
@@ -1260,6 +1489,9 @@ function drawRouteFlow(ctx, w, h, path) {
 
 // ── Traffic Particles ─────────────────────────
 function drawTrafficParticles(ctx, w, h) {
+  const activeEdgeKeys = getActiveEdgeKeys();
+  const hasActiveRoute = activeEdgeKeys.size > 0;
+
   trafficParticles.forEach((tp) => {
     // only update progress on main draw loop
     if (ctx === mapCtx) {
@@ -1278,14 +1510,16 @@ function drawTrafficParticles(ctx, w, h) {
     const p = getCurvePointAbs(curve, tp.progress, w, h);
 
     const t = tp.edge.traffic || 0.3;
+    const isRouteEdge = activeEdgeKeys.has(getEdgeKey(tp.edge.from, tp.edge.to));
+    const opacityMultiplier = hasActiveRoute && !isRouteEdge ? 0.45 : 1;
     const color = t > 0.65
-      ? `rgba(255, 80, 50, ${0.25 + tp.progress * 0.25})`
+      ? `rgba(255, 80, 50, ${(0.25 + tp.progress * 0.25) * opacityMultiplier})`
       : t > 0.4
-        ? `rgba(255, 200, 50, ${0.25 + tp.progress * 0.25})`
-        : `rgba(0, 255, 136, ${0.25 + tp.progress * 0.25})`;
+        ? `rgba(255, 200, 50, ${(0.25 + tp.progress * 0.25) * opacityMultiplier})`
+        : `rgba(0, 255, 136, ${(0.25 + tp.progress * 0.25) * opacityMultiplier})`;
 
     ctx.beginPath();
-    ctx.arc(p.x, p.y, 2.2, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, isRouteEdge ? 2.5 : 2.0, 0, Math.PI * 2);
     ctx.fillStyle = color;
     ctx.fill();
   });
@@ -1309,6 +1543,8 @@ function drawDPNodes(ctx, w, h) {
 
 // ── NODES — bigger, with halos + labels ───────
 function drawNodes(ctx, w, h, path) {
+  const labelPlacements = buildLabelPlacements(ctx, w, h);
+
   cityNodes.forEach((node) => {
     const x = nodeX(node, w);
     const y = nodeY(node, h);
@@ -1316,15 +1552,23 @@ function drawNodes(ctx, w, h, path) {
     const isHovered = hoveredNode === node.id;
     const isStart = path.length > 0 && path[0] === node.id;
     const isEnd = path.length > 0 && path[path.length - 1] === node.id;
+    const placement = labelPlacements.get(node.id);
+    const nodeColor = isStart
+      ? '#00ff88'
+      : isEnd
+        ? '#ff3b3b'
+        : isActive
+          ? '#00c3ff'
+          : TYPE_COLORS[node.type] || 'rgba(255,255,255,0.85)';
 
     // Outer halo
     ctx.beginPath();
-    ctx.arc(x, y, 24, 0, Math.PI * 2);
+    ctx.arc(x, y, isHovered ? 28 : 24, 0, Math.PI * 2);
     if (isStart) ctx.fillStyle = 'rgba(0, 255, 136, 0.08)';
     else if (isEnd) ctx.fillStyle = 'rgba(255, 59, 59, 0.08)';
     else if (isActive) ctx.fillStyle = 'rgba(0, 195, 255, 0.08)';
-    else if (isHovered) ctx.fillStyle = 'rgba(122, 0, 255, 0.08)';
-    else ctx.fillStyle = 'rgba(255, 255, 255, 0.02)';
+    else if (isHovered) ctx.fillStyle = 'rgba(122, 0, 255, 0.1)';
+    else ctx.fillStyle = node.type === 'hospital' ? 'rgba(255, 90, 90, 0.06)' : 'rgba(255, 255, 255, 0.025)';
     ctx.fill();
 
     // Pulse ring
@@ -1338,64 +1582,85 @@ function drawNodes(ctx, w, h, path) {
       ctx.lineWidth = 2;
       ctx.stroke();
     }
-    
-    // Tooltip Hover effect
-    if (isHovered) {
-        ctx.fillStyle = 'rgba(10, 10, 20, 0.8)';
-        ctx.strokeStyle = 'var(--primary)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.roundRect(x - 45, y - 55, 90, 24, 4);
-        ctx.fill();
-        ctx.stroke();
-        
-        ctx.font = '500 9px "Inter", sans-serif';
-        ctx.fillStyle = '#fff';
-        ctx.textAlign = 'center';
-        ctx.fillText("DISTRICT", x, y - 39);
-    }
 
     // Node dot
-    const radius = isHovered ? 12 : isActive ? 10 : 8;
+    const radius = isHovered ? 11.5 : isActive ? 9.5 : 7.5;
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
-
-    if (isStart) {
-      ctx.fillStyle = '#00ff88';
-      ctx.shadowColor = '#00ff88'; ctx.shadowBlur = 26;
-    } else if (isEnd) {
-      ctx.fillStyle = '#ff3b3b';
-      ctx.shadowColor = '#ff3b3b'; ctx.shadowBlur = 26;
-    } else if (isActive) {
-      ctx.fillStyle = '#00c3ff';
-      ctx.shadowColor = '#00c3ff'; ctx.shadowBlur = 22;
-    } else {
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-      ctx.shadowBlur = 0;
-    }
+    ctx.fillStyle = nodeColor;
+    ctx.shadowColor = nodeColor;
+    ctx.shadowBlur = isStart || isEnd ? 28 : isActive ? 24 : isHovered ? 18 : 10;
     ctx.fill();
     ctx.shadowBlur = 0;
 
-    // Label
-    ctx.font = comparisonMode ? '600 16px "Orbitron", monospace' : '600 14px "Orbitron", monospace';
-    ctx.textAlign = 'center';
-    ctx.fillStyle = isActive ? '#00c3ff'
-      : isHovered ? '#ffffff'
-      : 'rgba(224, 230, 240, 0.7)';
-    
-    // Stagger labels up and down universally to prevent text collisions
-    const nodeIndex = cityNodes.findIndex(n => n.id === node.id);
-    let yOffset = (nodeIndex % 2 === 0) ? -32 : 32;
-    
-    if (comparisonMode) {
-        yOffset = (nodeIndex % 2 === 0) ? -38 : 38;
+    ctx.beginPath();
+    ctx.arc(x, y, Math.max(2.8, radius * 0.38), 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.globalAlpha = isHovered || isActive ? 0.95 : 0.75;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    if (!placement) return;
+
+    // Connector line
+    const pillAnchorX = placement.align === 'left'
+      ? placement.left + 12
+      : placement.align === 'right'
+        ? placement.right - 12
+        : (placement.left + placement.right) / 2;
+    const pillAnchorY = placement.textY + (placement.baseline === 'alphabetic' ? -placement.height / 2 + 3 : placement.baseline === 'middle' ? 0 : placement.height / 2 - 3);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo((x + pillAnchorX) / 2, (y + pillAnchorY) / 2);
+    ctx.lineTo(pillAnchorX, pillAnchorY);
+    ctx.strokeStyle = isActive || isHovered ? 'rgba(0, 195, 255, 0.28)' : 'rgba(255, 255, 255, 0.12)';
+    ctx.lineWidth = isActive || isHovered ? 1.4 : 1;
+    ctx.stroke();
+
+    // Label capsule
+    const labelWidth = placement.right - placement.left;
+    const labelHeight = placement.bottom - placement.top;
+    ctx.beginPath();
+    ctx.roundRect(placement.left, placement.top, labelWidth, labelHeight, 12);
+    ctx.fillStyle = isHovered
+      ? 'rgba(14, 18, 34, 0.92)'
+      : isActive
+        ? 'rgba(8, 14, 24, 0.84)'
+        : 'rgba(7, 10, 18, 0.76)';
+    ctx.fill();
+    ctx.strokeStyle = isStart
+      ? 'rgba(0,255,136,0.4)'
+      : isEnd
+        ? 'rgba(255,59,59,0.42)'
+        : isActive
+          ? 'rgba(0,195,255,0.35)'
+          : 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.font = `600 ${placement.fontSize}px "Orbitron", monospace`;
+    ctx.textAlign = placement.align;
+    ctx.textBaseline = placement.baseline;
+    ctx.fillStyle = isActive ? '#8fe8ff' : isHovered ? '#ffffff' : 'rgba(224, 230, 240, 0.88)';
+    ctx.fillText(node.label, placement.textX, placement.textY);
+
+    if (isHovered) {
+      const chipText = node.type.toUpperCase();
+      ctx.font = '600 9px "Inter", sans-serif';
+      const chipWidth = ctx.measureText(chipText).width + 14;
+      const chipX = placement.left + 10;
+      const chipY = placement.top - 18;
+      ctx.beginPath();
+      ctx.roundRect(chipX, chipY, chipWidth, 16, 8);
+      ctx.fillStyle = 'rgba(0, 195, 255, 0.12)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0, 195, 255, 0.28)';
+      ctx.stroke();
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#bcefff';
+      ctx.fillText(chipText, chipX + 7, chipY + 8);
     }
-    
-    if (yOffset > 0) ctx.textBaseline = 'top'; // draw below node
-    else ctx.textBaseline = 'alphabetic';
-    
-    ctx.fillText(node.label, x, y + yOffset);
-    ctx.textBaseline = 'alphabetic'; // reset
   });
 }
 

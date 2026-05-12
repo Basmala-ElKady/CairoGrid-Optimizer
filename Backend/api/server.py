@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from Backend.api.launcher import configure_asyncio_runtime
+
+configure_asyncio_runtime()
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -52,13 +56,6 @@ app = create_app()
 
 
 if __name__ == "__main__":
-    import os
+    from Backend.api.launcher import run_backend_server
 
-    import uvicorn
-
-    uvicorn.run(
-        "Backend.api.server:app",
-        host=os.getenv("CAIROGRID_API_HOST", "127.0.0.1"),
-        port=int(os.getenv("CAIROGRID_API_PORT", "8000")),
-        reload=False,
-    )
+    run_backend_server()
