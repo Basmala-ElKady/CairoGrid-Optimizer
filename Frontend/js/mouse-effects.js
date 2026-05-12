@@ -8,8 +8,8 @@
  * applies mouse offset — never fights scroll.
  */
 
-import { baseCameraPos, baseCameraLookAt, getScrollState } from './scroll-system.js';
-import { getCamera, getAlive } from './three-scene.js';
+import { baseCameraPos, baseCameraLookAt, getScrollState } from './scroll-system.js?v=20260512-api-sync';
+import { getCamera, getAlive } from './three-scene.js?v=20260512-api-sync';
 
 let camera = null;
 let enabled = true;

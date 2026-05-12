@@ -21,6 +21,10 @@ class DataLoader:
                 raw_id = str(row['id']).replace('.0', '') if pd.notna(row.get('id')) else ""
                 if not raw_id:
                     continue
+
+                metadata = {
+                    "raw_type": str(row.get('type', '')) if pd.notna(row.get('type')) else "",
+                }
                 
                 nodes.append(Node(
                     node_id=raw_id,
@@ -28,7 +32,8 @@ class DataLoader:
                     node_type=location_type,
                     x=float(row.get('x-coordinate', 0) if pd.notna(row.get('x-coordinate')) else 0),
                     y=float(row.get('y-coordinate', 0) if pd.notna(row.get('y-coordinate')) else 0),
-                    population=int(float(row.get('population', 0)) if pd.notna(row.get('population')) else 0)
+                    population=int(float(row.get('population', 0)) if pd.notna(row.get('population')) else 0),
+                    metadata=metadata,
                 ))
             return nodes
         except Exception as e:
@@ -87,7 +92,11 @@ class DataLoader:
                     distance=float(row.get('distance(km)', 0) if pd.notna(row.get('distance(km)')) else 0),
                     capacity=int(float(row.get('current capacity(vehicles/hour)', 1000)) if pd.notna(row.get('current capacity(vehicles/hour)')) else 1000),
                     condition=int(float(row.get('condition(1-10)', 5)) if pd.notna(row.get('condition(1-10)')) else 5),
-                    traffic_profile=profile_data
+                    traffic_profile=profile_data,
+                    metadata={
+                        "road_id": f"{row['fromid']}-{row['toid']}",
+                        "source": "existing",
+                    },
                 )
                 edges.append(edge)
                 

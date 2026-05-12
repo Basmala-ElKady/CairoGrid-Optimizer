@@ -1,6 +1,9 @@
 # Stage: Serve static frontend with Nginx
 FROM nginx:alpine
 
+# Copy custom Nginx config with API proxying
+COPY Frontend/nginx.conf /etc/nginx/conf.d/default.conf
+
 # Copy all frontend files into Nginx's default web root
 COPY Frontend/ /usr/share/nginx/html/
 

@@ -1168,3 +1168,73 @@ body.emergency-mode.scanline-effect::after {
   background: linear-gradient(90deg, transparent, rgba(255, 59, 59, 0.25), transparent) !important;
 }
 
+/* ============================================================
+   COMPARISON MODE OVERRIDES
+   ============================================================ */
+
+#map-container-wrapper.comparison-active {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding: 30px !important;
+    gap: 60px !important;
+    background: rgba(2, 2, 3, 0.95) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    align-items: stretch !important;
+}
+
+#map-container-wrapper.comparison-active #main-pane,
+#map-container-wrapper.comparison-active #compare-pane {
+    width: 100% !important;
+    flex: 0 0 auto !important;
+    height: auto !important;
+    min-height: 950px !important;
+    background: var(--glass-bg) !important;
+    border: 1px solid rgba(122, 0, 255, 0.3) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 10px 40px rgba(122, 0, 255, 0.05) !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+#map-container-wrapper.comparison-active #main-pane {
+    border-color: rgba(0, 195, 255, 0.3) !important;
+    box-shadow: 0 10px 40px rgba(0, 195, 255, 0.05) !important;
+}
+
+#map-container-wrapper.comparison-active #map-canvas,
+#map-container-wrapper.comparison-active #map-canvas-compare {
+    position: relative !important;
+    flex: 0 0 auto !important;
+    min-height: 750px !important;
+    height: 800px !important;
+    width: 100% !important;
+    border-radius: 0 0 12px 12px !important;
+    border-top: none !important;
+}
+
+.compare-stats-row {
+    display: none;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    padding: 20px;
+    background: rgba(0,0,0,0.2);
+    border-bottom: 1px solid var(--border);
+}
+
+#map-container-wrapper.comparison-active .compare-stats-row {
+    display: grid;
+}
+
+.winner-badge {
+    background: linear-gradient(135deg, #00ff88, #00c3ff);
+    color: #000;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.6rem;
+    font-weight: 800;
+    margin-left: 15px;
+    vertical-align: middle;
+    text-shadow: none;
+}

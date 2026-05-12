@@ -21,5 +21,7 @@ COPY . .
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 
-# Command to run the simulation
-CMD ["python", "main.py"]
+EXPOSE 8000
+
+# Default root build should match the production backend API
+CMD ["uvicorn", "Backend.api.server:app", "--host", "0.0.0.0", "--port", "8000"]

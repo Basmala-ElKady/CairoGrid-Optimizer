@@ -13,7 +13,7 @@ import * as THREE from 'three';
 import {
   getLights, getScene,
   setRoadState, setModelEmissive,
-} from './three-scene.js';
+} from './three-scene.js?v=20260512-api-sync';
 
 let canvas, ctx;
 let particles = [];

@@ -14,7 +14,7 @@
 import {
   getModelGroup, getCamera,
   setRoadSpeed, setAliveMotion,
-} from './three-scene.js';
+} from './three-scene.js?v=20260512-api-sync';
 
 // ── Section keyframes — scroll ranges ─────────
 // Each section occupies a 0–1 range of scroll progress
