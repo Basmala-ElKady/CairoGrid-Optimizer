@@ -9,6 +9,7 @@ from dataclasses import dataclass
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8000
 DEFAULT_LOG_LEVEL = "info"
+BACKEND_LOOP_FACTORY = "Backend.api.launcher:create_backend_event_loop"
 
 
 @dataclass(frozen=True)
@@ -46,6 +47,21 @@ def get_asyncio_policy_name() -> str:
     return type(asyncio.get_event_loop_policy()).__name__
 
 
+def create_backend_event_loop() -> asyncio.AbstractEventLoop:
+    """
+    Return the event loop implementation used by the local backend server.
+
+    Uvicorn 0.46+ explicitly picks a Proactor loop on Windows for its default
+    asyncio runner, which can reintroduce WinError 10014 during socket accept.
+    Providing our own loop factory keeps backend startup stable across Uvicorn
+    upgrades instead of depending on its internal platform defaults.
+    """
+
+    if sys.platform == "win32":
+        return asyncio.SelectorEventLoop()
+    return asyncio.new_event_loop()
+
+
 def load_backend_server_settings() -> BackendServerSettings:
     return BackendServerSettings(
         host=os.getenv("CAIROGRID_API_HOST", DEFAULT_HOST),
@@ -66,7 +82,7 @@ def run_backend_server(settings: BackendServerSettings | None = None) -> None:
         host=active_settings.host,
         port=active_settings.port,
         reload=False,
-        loop="asyncio",
+        loop=BACKEND_LOOP_FACTORY,
         log_level=active_settings.log_level,
         access_log=True,
         lifespan="on",
