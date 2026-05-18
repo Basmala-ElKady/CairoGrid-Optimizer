@@ -106,14 +106,39 @@ def compare_routes(request: RouteRequest, runtime: BackendRuntime = Depends(get_
     if not request.destination:
         raise ApiError(400, "missing_destination", "Destination is required for route comparison.")
 
-    astar_response = _run_pathfinding(runtime, AStarAlgorithm(), request)
+    _validate_route_request(runtime, request.source, request.destination)
+
+    # ── A* side: use the OPTIMIZED emergency A* (same implementation as Emergency mode) ──
+    astar_started = perf_counter()
+    astar_raw = runtime.emergency_service.get_route(
+        start_node=request.source,
+        end_node=request.destination,
+        current_time=runtime.period_start_hour(request.time_period.value),
+        is_emergency=True,
+    )
+    astar_runtime_ms = (perf_counter() - astar_started) * 1000
+    astar_path = astar_raw.get("path", [])
+    if not astar_path:
+        raise ApiError(404, "no_route", "No route could be found for A* (optimized).")
+    astar_response = build_route_response(
+        runtime,
+        astar_path,
+        request.time_period.value,
+        "emergency",
+        runtime_ms=round(astar_runtime_ms, 3),
+        nodes_explored=int(astar_raw.get("nodes_explored", 0)),
+        metadata=astar_raw.get("metadata", {}),
+    )
+
+    # ── Dijkstra side: standard Dijkstra (same as before) ──
     dijkstra_response = _run_pathfinding(runtime, Dijkstra(), request)
 
-    astar_runtime = astar_response["runtime_ms"]
-    dijkstra_runtime = dijkstra_response["runtime_ms"]
-    if astar_runtime < dijkstra_runtime:
+    # ── Dynamic winner determination from REAL measured execution ──
+    astar_rt = astar_response["runtime_ms"]
+    dijkstra_rt = dijkstra_response["runtime_ms"]
+    if astar_rt < dijkstra_rt:
         winner = "astar"
-    elif dijkstra_runtime < astar_runtime:
+    elif dijkstra_rt < astar_rt:
         winner = "dijkstra"
     else:
         winner = "tie"

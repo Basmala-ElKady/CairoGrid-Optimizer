@@ -696,39 +696,116 @@ function setComparisonMode(enabled) {
     const dashBody = document.querySelector('.dash-body');
     const outputPanel = document.getElementById('output-panel');
     const compareBtn = document.getElementById('compare-btn');
+    const banner = document.getElementById('comparison-summary-banner');
 
     if (enabled) {
-        if (document.getElementById('comparison-summary-banner')) document.getElementById('comparison-summary-banner').style.display = 'block';
+        if (banner) banner.style.display = 'block';
         rightPane.style.display = 'flex';
         leftTitle.style.display = 'block';
         mapWrapper.classList.add('comparison-active');
         if (dashBody) dashBody.style.gridTemplateColumns = '320px 1fr';
         if (outputPanel) outputPanel.style.display = 'none';
         if (compareBtn) {
-            compareBtn.innerHTML = '<span style="color: #fff;">❌ Exit Comparison</span>';
+            compareBtn.innerHTML = '<span style="color: #fff;">\u274C Exit Comparison</span>';
             compareBtn.style.background = 'var(--secondary)';
             compareBtn.style.borderColor = 'var(--secondary)';
             compareBtn.style.boxShadow = '0 0 20px rgba(122, 0, 255, 0.4)';
         }
     } else {
-        if (document.getElementById('comparison-summary-banner')) document.getElementById('comparison-summary-banner').style.display = 'none';
-        rightPane.style.display = 'none';
-        leftTitle.style.display = 'none';
-        mapWrapper.classList.remove('comparison-active');
+        // ── FULL RESET of all comparison state ──
+        if (banner) banner.style.display = 'none';
+
+        // Reset right pane completely
+        if (rightPane) {
+            rightPane.style.display = 'none';
+            rightPane.style.flex = '';
+            rightPane.style.width = '';
+            rightPane.style.height = '';
+            rightPane.style.minHeight = '';
+            rightPane.style.position = '';
+            rightPane.style.overflow = '';
+        }
+
+        // Reset left title
+        if (leftTitle) leftTitle.style.display = 'none';
+
+        // Reset map wrapper — remove comparison class AND clear any residual inline styles
+        if (mapWrapper) {
+            mapWrapper.classList.remove('comparison-active');
+            mapWrapper.style.overflow = '';
+            mapWrapper.style.padding = '';
+            mapWrapper.style.gap = '';
+            mapWrapper.style.background = '';
+            mapWrapper.style.flexDirection = '';
+            mapWrapper.style.justifyContent = '';
+            mapWrapper.style.alignItems = '';
+        }
+
+        // Reset main pane inline styles that comparison CSS may have overridden
+        const mainPane = document.getElementById('main-pane');
+        if (mainPane) {
+            mainPane.style.width = '';
+            mainPane.style.flex = '';
+            mainPane.style.height = '';
+            mainPane.style.minHeight = '';
+            mainPane.style.position = '';
+            mainPane.style.overflow = '';
+            mainPane.style.background = '';
+            mainPane.style.border = '';
+            mainPane.style.borderRadius = '';
+            mainPane.style.boxShadow = '';
+        }
+
+        // Restore grid layout
         if (dashBody) dashBody.style.gridTemplateColumns = '320px 1fr 320px';
-        if (outputPanel) outputPanel.style.display = 'block';
+
+        // Restore output panel
+        if (outputPanel) {
+            outputPanel.style.display = 'block';
+        }
+
+        // Reset compare button
         if (compareBtn) {
-            compareBtn.innerHTML = '<span style="color: var(--secondary);">⚔️ Compare Dijkstra vs A*</span>';
+            compareBtn.innerHTML = '<span style="color: var(--secondary);">\u2694\uFE0F Compare Dijkstra vs Optimized A*</span>';
             compareBtn.style.background = 'transparent';
             compareBtn.style.borderColor = 'var(--secondary)';
             compareBtn.style.boxShadow = 'none';
         }
+
+        // Reset winner badges
+        const astarWinner = document.getElementById('astar-winner');
+        const dijkstraWinner = document.getElementById('dijkstra-winner');
+        if (astarWinner) astarWinner.style.display = 'none';
+        if (dijkstraWinner) dijkstraWinner.style.display = 'none';
+
+        // Reset canvases inline styles that might have been injected
+        if (mapCanvas) {
+            mapCanvas.style.position = '';
+            mapCanvas.style.flex = '';
+            mapCanvas.style.minHeight = '';
+            mapCanvas.style.height = '';
+            mapCanvas.style.borderRadius = '';
+            mapCanvas.style.borderTop = '';
+        }
+        if (mapCanvasCompare) {
+            mapCanvasCompare.style.position = '';
+            mapCanvasCompare.style.flex = '';
+            mapCanvasCompare.style.minHeight = '';
+            mapCanvasCompare.style.height = '';
+            mapCanvasCompare.style.borderRadius = '';
+            mapCanvasCompare.style.borderTop = '';
+        }
     }
-    // Small delay ensures layout updates before resizing canvases
+
+    // Force resize after layout settles — use longer delay to ensure CSS transitions complete
     setTimeout(() => {
         resizeMap();
         generateCurves();
-    }, 10);
+        // Second resize pass to catch any remaining layout shifts
+        requestAnimationFrame(() => {
+            resizeMap();
+        });
+    }, 50);
 }
 
 function onMapMouseMove(e, canvas) {
