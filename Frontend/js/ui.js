@@ -531,6 +531,23 @@ function populateSelectors() {
 
 function bindEvents() {
 
+  // DP dashboard: table sort handlers
+  document.querySelectorAll('#dp-route-table thead th[data-sort]').forEach((th) => {
+    th.addEventListener('click', () => {
+      const key = th.dataset.sort;
+      if (dpSortKey === key) dpSortDir = -dpSortDir;
+      else { dpSortKey = key; dpSortDir = 1; }
+      if (lastTransitResult) renderDpDashboard(lastTransitResult);
+    });
+  });
+  // DP dashboard: filter input
+  const dpFilter = document.getElementById('dp-table-filter');
+  if (dpFilter) {
+    dpFilter.addEventListener('input', () => {
+      if (lastTransitResult) renderDpDashboard(lastTransitResult);
+    });
+  }
+
   const timeSelect = document.getElementById('time-select');
   if (timeSelect) {
     timeSelect.addEventListener('change', (e) => {
@@ -987,6 +1004,7 @@ async function calculateRoute() {
       });
       lastTransitResult = transitResult;
       displayResults({ path: [], steps: [] }, mode);
+      renderDpDashboard(transitResult);
       const metrics = transitResult.optimization_metrics || {};
       const buses = Object.keys(dpSchedule).length;
       const routes = Object.keys(dpAllocations).length;
@@ -1058,6 +1076,237 @@ function applyAlgorithmUiMode(algo) {
 
   const compareBtn = document.getElementById('compare-btn');
   if (compareBtn) compareBtn.style.display = (algo === 'dijkstra') ? '' : 'none';
+
+  setDashboardMode(algo === 'dp' ? 'dp-dashboard' : 'map');
+}
+
+// ── DP TRANSIT SCHEDULER DASHBOARD ───────────────────────────────────────
+function setDashboardMode(mode) {
+  const mapPane = document.getElementById('main-pane');
+  const dpDash = document.getElementById('dp-dashboard');
+  const banner = document.getElementById('comparison-summary-banner');
+  const compareBtn = document.getElementById('compare-btn');
+  if (!mapPane || !dpDash) return;
+  if (mode === 'dp-dashboard') {
+    mapPane.style.display = 'none';
+    dpDash.style.display = 'flex';
+    if (banner) banner.style.display = 'none';
+    if (compareBtn) compareBtn.style.display = 'none';
+  } else {
+    mapPane.style.display = '';
+    dpDash.style.display = 'none';
+  }
+}
+
+let dpSortKey = 'time';
+let dpSortDir = 1;
+let dpActiveBus = null;
+
+function renderDpDashboard(transit) {
+  const usage = transit.resource_usage || {};
+  const metrics = transit.optimization_metrics || {};
+  const schedule = transit.schedule || {};
+  const allocations = transit.allocations || {};
+  const routesSelected = usage.routes_selected || [];
+  const allocatedSet = new Set(Object.keys(allocations));
+
+  // 1. Header chips
+  const passengers = Number(metrics.combined_passengers_covered || 0);
+  setText('dp-h-passengers', passengers.toLocaleString());
+  setText('dp-h-routes', String(Object.keys(allocations).length));
+  setText('dp-h-buses', String(Object.keys(schedule).length));
+  setText('dp-h-runtime', `${Number(transit.runtime_ms || 0).toFixed(3)} ms`);
+
+  // 2. Fleet gauge
+  renderDpFleetGauge(Number(usage.capacity_limit || 0), Number(usage.buses_requested || 0));
+
+  // 3. Build rows (one per schedule entry)
+  const rows = Object.entries(schedule).map(([busId, times]) => {
+    const timeStr = Array.isArray(times) && times.length ? times[0] : '00:00';
+    const minutes = parseTimeToMinutes(timeStr);
+    const isAllocated = allocatedSet.has(busId);
+    const isDemandKey = /^[\w\d]+-[\w\d]+$/.test(busId) && !isAllocated;
+    return {
+      bus: busId,
+      time: timeStr,
+      minutes,
+      source: isAllocated ? 'Allocation DP' : (isDemandKey ? 'Scheduling DP (demand edge)' : 'Scheduling DP'),
+      type: isAllocated ? 'allocated' : 'scheduled',
+      status: 'Active',
+    };
+  });
+
+  renderDpTimeline(rows);
+  renderDpTable(rows);
+  renderDpChips(routesSelected, allocations);
+}
+
+function setText(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
+}
+
+function parseTimeToMinutes(timeStr) {
+  const [h, m] = String(timeStr).split(':').map(Number);
+  return (isNaN(h) ? 0 : h) * 60 + (isNaN(m) ? 0 : m);
+}
+
+function renderDpFleetGauge(capacity, requested) {
+  const ratio = requested > 0 ? Math.min(1, capacity / requested) : 0;
+  const arcLen = 251.3; // length of semi-circle path
+  const offset = arcLen - (ratio * arcLen);
+  const arc = document.getElementById('dp-gauge-arc');
+  const arcFg = document.getElementById('dp-gauge-arc-fg');
+  if (arc) {
+    arc.style.transition = 'stroke-dashoffset 0.9s cubic-bezier(0.25, 0.8, 0.25, 1)';
+    arc.setAttribute('stroke-dashoffset', String(offset));
+  }
+  if (arcFg) {
+    arcFg.style.transition = 'stroke-dashoffset 0.9s cubic-bezier(0.25, 0.8, 0.25, 1)';
+    arcFg.setAttribute('stroke-dashoffset', String(offset));
+  }
+  const gv = document.getElementById('dp-gauge-value');
+  if (gv) gv.textContent = `${capacity} / ${requested}`;
+  setText('dp-fleet-cap', String(capacity));
+  setText('dp-fleet-req', String(requested));
+  setText('dp-fleet-free', String(Math.max(0, requested - capacity)));
+}
+
+function renderDpTimeline(rows) {
+  const axis = document.getElementById('dp-timeline-axis');
+  const body = document.getElementById('dp-timeline-body');
+  if (!axis || !body) return;
+
+  axis.innerHTML = '';
+  for (let h = 0; h <= 24; h += 2) {
+    const tick = document.createElement('div');
+    tick.className = 'dp-tl-axis-tick';
+    tick.style.left = `${(h / 24) * 100}%`;
+    axis.appendChild(tick);
+    if (h % 4 === 0) {
+      const label = document.createElement('div');
+      label.className = 'dp-tl-axis-label';
+      label.style.left = `${(h / 24) * 100}%`;
+      label.textContent = `${String(h).padStart(2, '0')}:00`;
+      axis.appendChild(label);
+    }
+  }
+
+  body.innerHTML = '';
+  if (rows.length === 0) {
+    body.innerHTML = '<div style="color:var(--text-secondary); padding:24px 0; text-align:center;">No buses scheduled — try increasing fleet capacity.</div>';
+    return;
+  }
+
+  const sorted = [...rows].sort((a, b) => a.minutes - b.minutes);
+  sorted.forEach((row) => {
+    const rowEl = document.createElement('div');
+    rowEl.className = 'dp-tl-row';
+    rowEl.dataset.bus = row.bus;
+    rowEl.innerHTML = `
+      <div class="dp-tl-name" title="${row.bus}">${row.bus}</div>
+      <div class="dp-tl-track">
+        <div class="dp-tl-bar ${row.type === 'allocated' ? 'alloc' : 'sched'}"
+             style="left:${(row.minutes / 1440) * 100}%; width:${(30 / 1440) * 100}%;"
+             data-bus="${row.bus}" data-time="${row.time}" data-source="${row.source}"></div>
+      </div>`;
+    body.appendChild(rowEl);
+  });
+
+  // Tooltip + click highlighting
+  body.querySelectorAll('.dp-tl-bar').forEach((bar) => {
+    bar.addEventListener('mouseenter', (e) => showDpTooltip(e, bar));
+    bar.addEventListener('mousemove', (e) => positionDpTooltip(e));
+    bar.addEventListener('mouseleave', hideDpTooltip);
+    bar.addEventListener('click', () => setDpActiveBus(bar.dataset.bus));
+  });
+}
+
+function renderDpTable(rows) {
+  const tbody = document.getElementById('dp-route-tbody');
+  if (!tbody) return;
+  const filterInput = document.getElementById('dp-table-filter');
+  const filter = (filterInput?.value || '').toLowerCase().trim();
+
+  let view = [...rows];
+  if (filter) view = view.filter((r) => r.bus.toLowerCase().includes(filter));
+
+  view.sort((a, b) => {
+    let cmp = 0;
+    if (dpSortKey === 'bus') cmp = a.bus.localeCompare(b.bus);
+    else if (dpSortKey === 'time') cmp = a.minutes - b.minutes;
+    else if (dpSortKey === 'type') cmp = a.source.localeCompare(b.source);
+    else if (dpSortKey === 'status') cmp = a.status.localeCompare(b.status);
+    return cmp * dpSortDir;
+  });
+
+  tbody.innerHTML = '';
+  view.forEach((row) => {
+    const tr = document.createElement('tr');
+    tr.dataset.bus = row.bus;
+    if (row.bus === dpActiveBus) tr.classList.add('active');
+    const statusClass = row.type === 'allocated' ? 'allocated' : 'scheduled';
+    const statusLabel = row.type === 'allocated' ? 'ALLOCATED' : 'SCHEDULED';
+    tr.innerHTML = `
+      <td style="color:var(--text); font-family:'Orbitron', monospace; font-size:0.82rem; letter-spacing:1px;">${row.bus}</td>
+      <td style="color:var(--text-secondary); font-family:'Orbitron', monospace;">${row.time}</td>
+      <td><span class="dp-source-pill">${row.source}</span></td>
+      <td><span class="dp-status-pill ${statusClass}">${statusLabel}</span></td>`;
+    tr.addEventListener('click', () => setDpActiveBus(row.bus));
+    tbody.appendChild(tr);
+  });
+}
+
+function renderDpChips(routesSelected, allocations) {
+  const row = document.getElementById('dp-chips-row');
+  const meta = document.getElementById('dp-chips-meta');
+  if (!row) return;
+  row.innerHTML = '';
+  if (meta) meta.textContent = `${routesSelected.length} route(s) selected by ResourceAllocationDP`;
+  if (routesSelected.length === 0) {
+    row.innerHTML = '<div style="color:var(--text-secondary); font-size:0.78rem;">No routes were selected — fleet capacity is below the smallest route\'s bus requirement.</div>';
+    return;
+  }
+  routesSelected.forEach((rid) => {
+    const chip = document.createElement('div');
+    chip.className = 'dp-route-chip';
+    const times = allocations[rid] || [];
+    chip.textContent = `${rid}${times.length ? '  ·  ' + times.join(', ') : ''}`;
+    chip.title = `Route ${rid} selected by allocation DP`;
+    chip.addEventListener('click', () => setDpActiveBus(rid));
+    row.appendChild(chip);
+    gsap.fromTo(chip, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.4, ease: 'power3.out' });
+  });
+}
+
+function setDpActiveBus(busId) {
+  dpActiveBus = busId;
+  document.querySelectorAll('.dp-tl-row').forEach((r) => {
+    r.classList.toggle('active', r.dataset.bus === busId);
+  });
+  document.querySelectorAll('#dp-route-tbody tr').forEach((r) => {
+    r.classList.toggle('active', r.dataset.bus === busId);
+  });
+}
+
+function showDpTooltip(e, bar) {
+  const tip = document.getElementById('dp-tooltip');
+  if (!tip) return;
+  tip.innerHTML = `<strong>${bar.dataset.bus}</strong><br>Start: ${bar.dataset.time}<br>Source: ${bar.dataset.source}<br>Duration: 30 min slot`;
+  tip.style.opacity = '1';
+  positionDpTooltip(e);
+}
+
+function positionDpTooltip(e) {
+  const tip = document.getElementById('dp-tooltip');
+  if (!tip) return;
+  tip.style.left = `${e.clientX + 14}px`;
+  tip.style.top = `${e.clientY + 14}px`;
+}
+
+function hideDpTooltip() {
+  const tip = document.getElementById('dp-tooltip');
+  if (tip) tip.style.opacity = '0';
 }
 
 function displayResults(result, mode, compareResult = null, winner = null) {
