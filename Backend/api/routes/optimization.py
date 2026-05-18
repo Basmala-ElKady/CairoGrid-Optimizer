@@ -31,8 +31,10 @@ def _calculate_signal_balance(runtime: BackendRuntime, signal_plan: dict[str, di
 
 @router.get("/api/mst", response_model=MstResponse)
 def get_mst(runtime: BackendRuntime = Depends(get_runtime)):
-    result = runtime.planning_service.plan_expansion(runtime.potential_edges, runtime.node_map)
-    selected_edges = result["result"]["edges"]
+    planning = runtime.planning_service.plan_expansion(runtime.potential_edges, runtime.node_map)
+    result = planning["result"]
+    runtime_ms = float(planning["metrics"]["execution_time_ms"])
+    selected_edges = result["edges"]
     selected_by_id = {edge.metadata.get("road_id"): edge for edge in runtime.potential_edges}
     mst_edges = [selected_by_id[edge_id] for edge_id in selected_edges if edge_id in selected_by_id]
 
@@ -52,9 +54,11 @@ def get_mst(runtime: BackendRuntime = Depends(get_runtime)):
     return {
         "edges": [serialize_edge(edge) for edge in mst_edges],
         "total_cost": round(mst_cost, 3),
-        "nodes_connected": int(result["result"]["metadata"].get("districts_connected", 0)),
+        "nodes_connected": int(result["metadata"].get("districts_connected", 0)),
         "savings": round(total_candidate_cost - mst_cost, 3),
         "critical_facilities": sorted(set(facilities)),
+        "runtime_ms": round(runtime_ms, 3),
+        "nodes_explored": len(selected_nodes),
     }
 
 
@@ -64,20 +68,13 @@ def optimize_traffic(request: TrafficOptimizeRequest, runtime: BackendRuntime = 
     if request.mode.value == "emergency":
         if not request.source or not request.destination:
             raise ApiError(400, "missing_route", "Emergency traffic optimization requires source and destination.")
-        emergency_request = {
-            "source": request.source,
-            "destination": request.destination,
-            "time_period": request.time_period.value,
-            "mode": "emergency",
-        }
-        executed = runtime.execute_route_algorithm(
-            runtime.emergency_service.astar,
-            emergency_request["source"],
-            emergency_request["destination"],
-            emergency_request["time_period"],
-            emergency_request["mode"],
+        emergency_result = runtime.emergency_service.get_route(
+            request.source,
+            request.destination,
+            current_time=runtime.period_start_hour(request.time_period.value),
+            is_emergency=True,
         )
-        emergency_path = executed.path
+        emergency_path = emergency_result.get("path", [])
 
     period = runtime.time_period_enum(request.time_period.value)
     result = runtime.traffic_service.generate_signal_plan(

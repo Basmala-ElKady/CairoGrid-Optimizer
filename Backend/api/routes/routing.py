@@ -106,28 +106,7 @@ def compare_routes(request: RouteRequest, runtime: BackendRuntime = Depends(get_
     if not request.destination:
         raise ApiError(400, "missing_destination", "Destination is required for route comparison.")
 
-    # A* side: must call the SAME backend service/function used by Emergency routing
-    # This ensures it uses the "real working A*" logic with emergency optimizations
-    started_astar = perf_counter()
-    astar_raw = runtime.emergency_service.get_route(
-        request.source,
-        request.destination,
-        current_time=runtime.period_start_hour(request.time_period.value),
-        is_emergency=True
-    )
-    astar_ms = (perf_counter() - started_astar) * 1000
-    
-    astar_response = build_route_response(
-        runtime,
-        astar_raw.get("path", []),
-        request.time_period.value,
-        "emergency", # Always use emergency mode for the "working A*" in comparison
-        runtime_ms=astar_ms,
-        nodes_explored=int(astar_raw.get("nodes_explored", 0)),
-        metadata=astar_raw.get("metadata", {}),
-    )
-
-    # Dijkstra side: uses real standard Dijkstra
+    astar_response = _run_pathfinding(runtime, AStarAlgorithm(), request)
     dijkstra_response = _run_pathfinding(runtime, Dijkstra(), request)
 
     astar_runtime = astar_response["runtime_ms"]

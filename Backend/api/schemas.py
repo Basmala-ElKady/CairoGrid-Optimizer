@@ -103,6 +103,8 @@ class MstResponse(BaseModel):
     nodes_connected: int
     savings: float
     critical_facilities: list[str]
+    runtime_ms: float = 0.0
+    nodes_explored: int = 0
 
 
 class TrafficOptimizeRequest(BaseModel):
