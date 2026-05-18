@@ -89,15 +89,44 @@ python main.py
 ## Architecture
 
 ```text
-├── Backend/                 
-│   ├── algorithms/          # Pure algorithmic implementations
-│   ├── simulation/          # Scenario engines (Emergency, Normal)
-│   ├── services/            # API-ready service wrappers
-│   └── data/                # Geospatial and traffic datasets
-├── Frontend/                
-│   ├── js/                  # Scroll systems & Three.js logic
-│   └── css/                 # Cinematic UI tokens
-└── docker-compose.yml       # Full system orchestration
+.
+├── Backend/
+│   ├── algorithms/           # Pure mathematical/algorithmic implementations
+│   │   ├── common/           # Shared structures (Priority Queue, Cost Evaluators)
+│   │   ├── dp/               # Dynamic Programming (Resource Allocation, Scheduling)
+│   │   ├── greedy/           # Greedy Strategy (Traffic Signal timing)
+│   │   ├── mst/              # Minimum Spanning Tree (Prim's Algorithm)
+│   │   └── shortest_path/    # Pathfinding algorithms (Dijkstra, A* Search)
+│   ├── api/                  # FastAPI Application Layer (REST API)
+│   │   ├── server.py         # Main web server and endpoint handlers
+│   │   ├── schemas.py        # Pydantic schemas for request/response validation
+│   │   └── dependencies.py   # Shared dependencies and singletons
+│   ├── config/               # System configurations and global constants
+│   ├── data/                 # Raw/Processed CSV datasets (districts, roads, demand)
+│   ├── graph/                # Adjacency-list based TransportGraph definitions
+│   ├── models/               # Domain Entity Models (Node, Edge, TrafficProfile, TimePeriod)
+│   ├── services/             # API-ready service wrappers orchestrating domain logic
+│   ├── simulation/           # Execution environments (Normal, Emergency, ML scenarios)
+│   ├── tests/                # Comprehensive unit and integration test suite
+│   └── utils/                # Helper utilities and loaders
+├── Frontend/
+│   ├── audio/                # Immersive sound effects and feedback
+│   ├── css/                  # Custom design tokens, glassmorphism, cinematic typography
+│   │   └── style.css         # Main application stylesheet
+│   ├── js/                   # Vanilla JavaScript modular architecture
+│   │   ├── main.js           # Core bootstrapper and page scroll coordinator
+│   │   ├── environment.js    # Three.js 3D engine setup & map instantiation
+│   │   ├── ui.js             # Main UI interface controller and state manager
+│   │   ├── scroll-system.js  # GSAP-driven scroll animation framework
+│   │   └── three-scene.js    # 3D assets, particles, and node geometries
+│   ├── models/               # High-quality 3D assets (e.g., car models)
+│   ├── nginx.conf            # Nginx server configuration with reverse proxy for FastAPI
+│   └── index.html            # Main markup page for the futuristic cinematic dashboard
+├── Dockerfile.backend        # Dockerfile for Backend FastAPI container
+├── Dockerfile.frontend       # Dockerfile for Frontend Nginx container
+├── docker-compose.yml        # Orchestration settings for multi-container deployment
+├── requirements.txt          # Python library dependencies
+└── run_local.py              # CLI bootstrap script to run local dev environment
 ```
 
 ---
