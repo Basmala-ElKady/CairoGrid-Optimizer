@@ -54,11 +54,18 @@ class ResourceAllocationDP(BaseAlgorithm):
                 w_rem -= weights[i - 1]
 
         # 5. Result Formatting
-        schedule = {route.get("route_id", f"R{idx}"): [route.get("time", "00:00")] 
-                    for idx, route in enumerate(selected)}
+        schedule = {}
+        route_list = []
+        for idx, item in enumerate(selected):
+            r_id = item.get("route_id", f"R{idx}")
+            t = item.get("time", "00:00")
+            if r_id not in schedule: schedule[r_id] = []
+            schedule[r_id].append(t)
+            route_list.append(f"{r_id} ({t})")
 
         return {
             "schedule": schedule,
+            "route": route_list,
             "cost": dp[n][capacity],
             "metadata": {"total_passengers_covered": dp[n][capacity]},
         }

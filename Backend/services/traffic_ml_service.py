@@ -158,7 +158,8 @@ class TrafficMLService:
     def predict_next_flow(self, edge):
         self.ensure_ready()
 
-        flows = list(edge.traffic.flows.values())
+        # Get flows from the actual flow_data attribute in TrafficProfile
+        flows = list(edge.traffic.flow_data.values())
 
         if len(flows) < 2:
             return 0.0
@@ -172,7 +173,7 @@ class TrafficMLService:
 
     def forecast_edge_flows(self, edge: Edge, steps: int = 1) -> list[float]:
         self.ensure_ready()
-        flows = list(edge.traffic.flows.values())
+        flows = list(edge.traffic.flow_data.values())
         if len(flows) < 2:
             return [0.0] * max(1, steps)
 

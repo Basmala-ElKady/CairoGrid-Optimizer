@@ -160,18 +160,35 @@ class SchedulingDP(BaseAlgorithm):
             selected_intervals = selected_intervals[:capacity]
 
         # 6. Result Formatting: Convert intervals back to the expected output format
+        # Sort by start time to represent a chronological "route"
+        selected_intervals.sort(key=lambda x: x[0])
+        
         schedule = {}
+        route_sequence = []
         total_passengers = 0
+        
         for start, end, val, original_item in selected_intervals:
             bus_id = original_item.get("bus_id", f"Bus_{original_item.get('id', 'Unknown')}")
             time_str = original_item.get("time", "00:00")
-            schedule[bus_id] = [time_str]
+            route_id = original_item.get("route_id", "Unknown")
+            
+            # Fix: Append instead of overwrite
+            if bus_id not in schedule:
+                schedule[bus_id] = []
+            schedule[bus_id].append(time_str)
+            
+            # Add to a sequential route representation
+            route_sequence.append(f"{route_id} ({time_str})")
             total_passengers += val
 
         return {
             "schedule": schedule,
+            "route": route_sequence, # Added route key
             "cost": total_passengers,
-            "metadata": {"total_passengers_covered": total_passengers}
+            "metadata": {
+                "total_passengers_covered": total_passengers,
+                "selected_count": len(selected_intervals)
+            }
         }
 
     def _build_intervals(self, data):
