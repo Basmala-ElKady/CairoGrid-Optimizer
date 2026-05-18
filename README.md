@@ -89,7 +89,7 @@ python main.py
 ## Architecture
 
 ```text
-.
+
 ├── Backend/
 │   ├── algorithms/           # Pure mathematical/algorithmic implementations
 │   │   ├── common/           # Shared structures (Priority Queue, Cost Evaluators)
