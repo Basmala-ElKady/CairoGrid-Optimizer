@@ -405,16 +405,28 @@ export function initDashboard() {
 
 function resizeMap() {
   if (!mapCanvas) return;
-  const wrapper = document.getElementById('map-container-wrapper');
-  
-  // Resize left canvas
-  mapCanvas.width = mapCanvas.parentElement.clientWidth;
-  mapCanvas.height = mapCanvas.parentElement.clientHeight;
-  
-  // Resize right canvas if it exists
+
+  // ── Guard: NEVER set canvas dimensions to zero ──
+  // When a parent is display:none or mid-reflow, clientWidth/Height is 0.
+  // Setting canvas.width = 0 permanently kills the render loop guard.
+  const parent = mapCanvas.parentElement;
+  if (parent) {
+    const pw = parent.clientWidth;
+    const ph = parent.clientHeight;
+    if (pw > 0 && ph > 0) {
+      mapCanvas.width = pw;
+      mapCanvas.height = ph;
+    }
+  }
+
+  // Resize right canvas if it exists and is visible
   if (mapCanvasCompare && mapCanvasCompare.parentElement) {
-    mapCanvasCompare.width = mapCanvasCompare.parentElement.clientWidth;
-    mapCanvasCompare.height = mapCanvasCompare.parentElement.clientHeight;
+    const cpw = mapCanvasCompare.parentElement.clientWidth;
+    const cph = mapCanvasCompare.parentElement.clientHeight;
+    if (cpw > 0 && cph > 0) {
+      mapCanvasCompare.width = cpw;
+      mapCanvasCompare.height = cph;
+    }
   }
 }
 
@@ -585,8 +597,8 @@ function bindEvents() {
       lastGreedyResult = null;
       lastMstResult = null;
       lastTransitResult = null;
-      applyAlgorithmUiMode(currentAlgorithm);
       setComparisonMode(false); // Disable comparison mode if they select a new single algorithm
+      applyAlgorithmUiMode(currentAlgorithm);
     });
   }
   
@@ -729,31 +741,20 @@ function setComparisonMode(enabled) {
         // Reset left title
         if (leftTitle) leftTitle.style.display = 'none';
 
-        // Reset map wrapper — remove comparison class AND clear any residual inline styles
+        // Reset map wrapper
         if (mapWrapper) {
             mapWrapper.classList.remove('comparison-active');
-            mapWrapper.style.overflow = '';
-            mapWrapper.style.padding = '';
-            mapWrapper.style.gap = '';
-            mapWrapper.style.background = '';
-            mapWrapper.style.flexDirection = '';
-            mapWrapper.style.justifyContent = '';
-            mapWrapper.style.alignItems = '';
+            mapWrapper.style.cssText = 'display: flex; flex: 1; width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: hidden;';
         }
 
-        // Reset main pane inline styles that comparison CSS may have overridden
+        // Reset main pane inline styles
         const mainPane = document.getElementById('main-pane');
         if (mainPane) {
-            mainPane.style.width = '';
-            mainPane.style.flex = '';
-            mainPane.style.height = '';
-            mainPane.style.minHeight = '';
-            mainPane.style.position = '';
-            mainPane.style.overflow = '';
-            mainPane.style.background = '';
-            mainPane.style.border = '';
-            mainPane.style.borderRadius = '';
-            mainPane.style.boxShadow = '';
+            if (currentAlgorithm === 'dp') {
+                mainPane.style.display = 'none';
+            } else {
+                mainPane.style.cssText = 'display: flex; flex: 1; flex-direction: column; width: 100%; height: 100%; min-width: 0; min-height: 0; position: relative;';
+            }
         }
 
         // Restore grid layout
@@ -797,15 +798,18 @@ function setComparisonMode(enabled) {
         }
     }
 
-    // Force resize after layout settles — use longer delay to ensure CSS transitions complete
-    setTimeout(() => {
-        resizeMap();
-        generateCurves();
-        // Second resize pass to catch any remaining layout shifts
+    // Force resize using double-rAF to ensure DOM has fully reflowed
+    requestAnimationFrame(() => {
         requestAnimationFrame(() => {
+            labelLayoutCache.clear();
             resizeMap();
+            generateCurves();
+            // Safety-net third pass for grid re-calculation edge cases
+            setTimeout(() => {
+                resizeMap();
+            }, 120);
         });
-    }, 50);
+    });
 }
 
 function onMapMouseMove(e, canvas) {
@@ -1164,43 +1168,68 @@ function setDashboardMode(mode) {
   const banner = document.getElementById('comparison-summary-banner');
   const compareBtn = document.getElementById('compare-btn');
   const mapWrapper = document.getElementById('map-container-wrapper');
+  const comparePane = document.getElementById('compare-pane');
   if (!mapPane || !dpDash) return;
   if (mode === 'dp-dashboard') {
     mapPane.style.display = 'none';
     dpDash.style.display = 'flex';
     if (banner) banner.style.display = 'none';
     if (compareBtn) compareBtn.style.display = 'none';
+    if (comparePane) comparePane.style.display = 'none';
+    if (mapWrapper) mapWrapper.classList.remove('comparison-active');
   } else {
     // ── FULL RESTORE of map layout after DP dashboard ──
     dpDash.style.display = 'none';
 
-    // Restore main-pane to its natural flex-column layout
-    mapPane.style.display = 'flex';
-    mapPane.style.flexDirection = 'column';
-    mapPane.style.flex = '1';
-    mapPane.style.height = '100%';
-    mapPane.style.minHeight = '0';
-    mapPane.style.position = 'relative';
-
-    // Ensure map wrapper is flex-column and fills its grid cell
     if (mapWrapper) {
-      mapWrapper.style.display = 'flex';
-      mapWrapper.style.flexDirection = 'column';
-      mapWrapper.style.width = '100%';
-      mapWrapper.style.height = '100%';
+      mapWrapper.classList.remove('comparison-active');
+      mapWrapper.style.cssText = 'display: flex; flex: 1; width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: hidden;';
+    }
+    const comparePane = document.getElementById('compare-pane');
+    if (comparePane) {
+      comparePane.style.display = 'none';
     }
 
-    // Force canvas resize after layout settles
-    setTimeout(() => {
-      labelLayoutCache.clear();
+    // Restore main-pane
+    mapPane.style.cssText = 'display: flex; flex: 1; flex-direction: column; width: 100%; height: 100%; min-width: 0; min-height: 0; position: relative;';
+
+    // Force full canvas lifecycle reset
+    forceMapRestore();
+  }
+}
+
+/**
+ * Hard-reset canvas dimensions after a layout transition.
+ *
+ * The problem: when main-pane goes from display:none → display:flex,
+ * the browser needs a full layout pass before clientWidth/clientHeight
+ * report real values. A single rAF is NOT enough — the browser may
+ * schedule style recalc in the same frame. Double-rAF guarantees
+ * we read dimensions AFTER the composited frame is complete.
+ */
+function forceMapRestore() {
+  // Step 1: zero-out canvas to force a fresh buffer allocation
+  if (mapCanvas) {
+    mapCanvas.width = 0;
+    mapCanvas.height = 0;
+  }
+  labelLayoutCache.clear();
+
+  // Step 2: double-rAF — wait for browser to fully lay out the container
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      // Now parent dimensions are guaranteed to be real
       resizeMap();
       generateCurves();
-      // Second pass for any remaining reflow
-      requestAnimationFrame(() => {
+
+      // Step 3: safety net — one more resize after 100ms for edge cases
+      // (CSS transitions, grid re-calculation, etc.)
+      setTimeout(() => {
+        labelLayoutCache.clear();
         resizeMap();
-      });
-    }, 60);
-  }
+      }, 120);
+    });
+  });
 }
 
 let dpSortKey = 'time';
@@ -1914,7 +1943,7 @@ function buildLabelPlacements(ctx, w, h) {
 function startMapLoop() {
   function draw() {
     requestAnimationFrame(draw);
-    if (!mapCtx || !mapCanvas.width) return;
+    if (!mapCtx || !mapCanvas.width || currentAlgorithm === 'dp') return;
     
     // Draw Left Canvas (Dijkstra/Normal)
     renderCanvas(mapCanvas, mapCtx, currentPath, true);
