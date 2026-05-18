@@ -119,6 +119,7 @@ class TrafficOptimizeResponse(BaseModel):
     congestion_metrics: dict[str, Any]
     improvement_percent: float
     affected_intersections: list[str]
+    runtime_ms: float = 0.0
 
 
 class TransitTripInput(BaseModel):
@@ -141,6 +142,7 @@ class TransitOptimizeResponse(BaseModel):
     allocations: dict[str, list[str]]
     resource_usage: dict[str, Any]
     optimization_metrics: dict[str, Any]
+    runtime_ms: float = 0.0
 
 
 class MLPredictRequest(BaseModel):
@@ -168,3 +170,29 @@ class MLPredictResponse(BaseModel):
     recommended_delay: float
     suggested_alternative: list[str]
     trend_data: list[TrendPointSchema]
+
+
+class MLEdgePredictionRequest(BaseModel):
+    source: str
+    target: str
+
+
+class MLEdgeStatusSchema(BaseModel):
+    flow: float
+    congestion: float
+    status: str
+
+
+class MLEdgePredictionResponse(BaseModel):
+    edge_id: str
+    source: str
+    target: str
+    source_name: str
+    target_name: str
+    capacity: float
+    distance_km: float
+    current: MLEdgeStatusSchema
+    prediction: MLEdgeStatusSchema
+    delta: float
+    trend: str
+    runtime_ms: float = 0.0

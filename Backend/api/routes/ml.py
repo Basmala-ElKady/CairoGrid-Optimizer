@@ -9,7 +9,12 @@ from Backend.algorithms.shortest_path.dijkstra import Dijkstra
 from Backend.api.dependencies import get_runtime
 from Backend.api.errors import ApiError
 from Backend.api.runtime import BackendRuntime
-from Backend.api.schemas import MLPredictRequest, MLPredictResponse
+from Backend.api.schemas import (
+    MLEdgePredictionRequest,
+    MLEdgePredictionResponse,
+    MLPredictRequest,
+    MLPredictResponse,
+)
 
 router = APIRouter(tags=["ml"])
 
@@ -22,6 +27,75 @@ def _congestion_label(ratio: float) -> str:
     if ratio >= 0.45:
         return "MODERATE"
     return "LOW"
+
+
+def _status_phrase(ratio: float) -> str:
+    """Matches the interpret_congestion() output structure of Backend/tests/test_ml.py."""
+    if ratio < 0.3:
+        return "LOW traffic (smooth flow)"
+    if ratio < 0.6:
+        return "MODERATE traffic (some delays)"
+    if ratio < 0.8:
+        return "HEAVY traffic (slow movement)"
+    return "SEVERE congestion (possible jam)"
+
+
+@router.post("/api/ml/edge-prediction", response_model=MLEdgePredictionResponse)
+def predict_edge_traffic(request: MLEdgePredictionRequest, runtime: BackendRuntime = Depends(get_runtime)):
+    """
+    Per-edge traffic forecast mirroring Backend/tests/test_ml.py.
+    Takes a single road segment (source-target) and returns its current flow/congestion
+    plus a next-step prediction. NO route advice, NO alternative paths.
+    """
+    source_node = runtime.get_node(request.source)
+    target_node = runtime.get_node(request.target)
+    if source_node is None:
+        raise ApiError(404, "invalid_source", f"Unknown source node '{request.source}'.")
+    if target_node is None:
+        raise ApiError(404, "invalid_target", f"Unknown target node '{request.target}'.")
+
+    edge = runtime.get_edge(request.source, request.target) or runtime.get_edge(request.target, request.source)
+    if edge is None:
+        raise ApiError(404, "invalid_edge", f"No road exists between '{request.source}' and '{request.target}'.")
+
+    capacity = float(edge.capacity) if edge.capacity else 1e-6
+    flows = list(edge.traffic.flows.values())
+    current_flow = float(flows[-1]) if flows else 0.0
+    current_ratio = current_flow / capacity
+
+    started = perf_counter()
+    predicted_ratio = float(runtime.ml_service.predict_congestion(edge))
+    runtime_ms = (perf_counter() - started) * 1000
+    predicted_flow = predicted_ratio * capacity
+
+    delta = predicted_ratio - current_ratio
+    trend = "INCREASING" if delta > 0.001 else ("DECREASING" if delta < -0.001 else "STABLE")
+
+    edge_id = f"{edge.source_id}-{edge.target_id}"
+    distance_km = float(edge.metadata.get("distance_km", edge.distance) if hasattr(edge, "metadata") and edge.metadata else edge.distance)
+
+    return {
+        "edge_id": edge_id,
+        "source": edge.source_id,
+        "target": edge.target_id,
+        "source_name": source_node.name,
+        "target_name": target_node.name,
+        "capacity": round(capacity, 1),
+        "distance_km": round(distance_km, 3),
+        "current": {
+            "flow": round(current_flow, 1),
+            "congestion": round(current_ratio, 3),
+            "status": _status_phrase(current_ratio),
+        },
+        "prediction": {
+            "flow": round(predicted_flow, 1),
+            "congestion": round(predicted_ratio, 3),
+            "status": _status_phrase(predicted_ratio),
+        },
+        "delta": round(delta, 3),
+        "trend": trend,
+        "runtime_ms": round(runtime_ms, 3),
+    }
 
 
 @router.post("/api/ml/predict", response_model=MLPredictResponse)

@@ -43,8 +43,9 @@ let dpAllocations = {}; // { routeId: [time, ...] } from /transit/optimize alloc
 let dpSchedule = {}; // { busId: [time, ...] } from /transit/optimize schedule
 let currentAffectedIntersections = []; // Greedy: node IDs of optimized signals
 let currentSignalPlan = {}; // Greedy: { node_X: { edge_id: green_seconds } }
-let predictedTrendData = []; // ML: trend points along predicted alternative path
-let isPredictedOverlay = false; // ML: draw the ML alternative path instead of an animated route
+let lastGreedyResult = null; // Full /traffic/optimize response for the metrics panel
+let lastMstResult = null; // Full /mst response for the metrics panel
+let lastTransitResult = null; // Full /transit/optimize response for the metrics panel
 let lastRouteCoordinates = [];
 let resolvedApiBase = null;
 let graphLoaded = false;
@@ -323,6 +324,7 @@ async function loadGraphData(forceRefresh = false) {
     labelLayoutCache.clear();
     updateEdgeTraffic();
     populateSelectors();
+    populateAiEdgeDropdown();
     generateCurves();
     createTrafficParticles();
     graphLoaded = true;
@@ -390,6 +392,7 @@ export function initDashboard() {
   if (!dashboardEventsBound) {
     bindEvents();
     window.addEventListener('resize', handleDashboardResize);
+    applyAlgorithmUiMode(currentAlgorithm);
     dashboardEventsBound = true;
   }
   if (!mapLoopStarted) {
@@ -562,8 +565,10 @@ function bindEvents() {
       dpSchedule = {};
       currentAffectedIntersections = [];
       currentSignalPlan = {};
-      predictedTrendData = [];
-      isPredictedOverlay = false;
+      lastGreedyResult = null;
+      lastMstResult = null;
+      lastTransitResult = null;
+      applyAlgorithmUiMode(currentAlgorithm);
       setComparisonMode(false); // Disable comparison mode if they select a new single algorithm
     });
   }
@@ -603,23 +608,13 @@ function bindEvents() {
                   aiSection.scrollIntoView({ behavior: 'smooth' });
               }, 100);
           }
-          // Mirror dashboard source/destination into AI selects so users don't re-pick
-          const dashSrc = document.getElementById('source-select')?.value;
-          const dashDst = document.getElementById('dest-select')?.value;
-          const aiSrc = document.getElementById('ai-source-select');
-          const aiDst = document.getElementById('ai-dest-select');
-          if (aiSrc && dashSrc && !aiSrc.value) aiSrc.value = dashSrc;
-          if (aiDst && dashDst && !aiDst.value) aiDst.value = dashDst;
-          // Auto-run prediction if both endpoints are now populated and distinct
-          if (aiSrc?.value && aiDst?.value && aiSrc.value !== aiDst.value) {
-              setTimeout(() => runPrediction(), 350);
-          }
+          populateAiEdgeDropdown();
       });
   }
 
   const runPredBtn = document.getElementById('run-prediction-btn');
   if (runPredBtn) {
-      runPredBtn.addEventListener('click', () => runPrediction());
+      runPredBtn.addEventListener('click', () => runEdgePrediction());
   }
 
   document.querySelectorAll('.mode-btn[data-mode]').forEach((btn) => {
@@ -787,65 +782,82 @@ async function fetchRoute(sourceId, destId, mode) {
   });
 }
 
-async function runPrediction() {
-  const source = document.getElementById('ai-source-select')?.value;
-  const destination = document.getElementById('ai-dest-select')?.value;
-  const horizon = Number(document.getElementById('ai-horizon-select')?.value || 30);
+async function runEdgePrediction() {
+  const edgeSelect = document.getElementById('ai-edge-select');
   const placeholder = document.getElementById('ai-placeholder');
   const output = document.getElementById('ai-output');
 
-  if (!source || !destination || source === destination) {
-    showNotification('Pick different AI origin and destination');
+  const value = edgeSelect?.value || '';
+  if (!value || !value.includes('|')) {
+    showNotification('Pick a road segment from the dropdown');
     return;
   }
+  const [source, target] = value.split('|');
 
   try {
-    showNotification('Running ML Analysis...');
-    const result = await apiRequest('/ml/predict', {
+    showNotification(`Predicting traffic on ${source} → ${target}…`);
+    const result = await apiRequest('/ml/edge-prediction', {
       method: 'POST',
-      body: JSON.stringify({
-        source,
-        destination,
-        time_period: currentTimePeriod,
-        prediction_horizon: horizon,
-      }),
+      body: JSON.stringify({ source, target }),
     });
 
     if (placeholder) placeholder.style.display = 'none';
     if (output) {
       output.style.display = 'block';
-      gsap.fromTo(output, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.8, ease: 'power3.out' });
+      gsap.fromTo(output, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out' });
     }
 
-    const congestionEl = document.getElementById('ai-congestion-val');
-    const delayEl = document.getElementById('ai-time-val');
-    const analysisEl = document.getElementById('ai-analysis-text');
-    const recommendationEl = document.getElementById('ai-rec-text');
+    document.getElementById('ai-edge-title').textContent =
+      `Road: ${result.edge_id}  (${result.source_name} → ${result.target_name})`;
+    document.getElementById('ai-edge-meta').textContent =
+      `Capacity: ${result.capacity.toFixed(0)} veh/h  •  Distance: ${result.distance_km.toFixed(2)} km  •  Inference: ${result.runtime_ms.toFixed(3)} ms`;
 
-    if (congestionEl) congestionEl.textContent = result.predicted_congestion;
-    if (delayEl) delayEl.textContent = `+${Math.round(result.recommended_delay)} Mins`;
-    if (analysisEl) {
-      const finalTrend = result.trend_data[result.trend_data.length - 1];
-      analysisEl.textContent = `Forecast score ${result.forecast_score} at ${finalTrend?.horizon_minutes || horizon} minutes for the selected corridor.`;
-    }
-    if (recommendationEl) {
-      const altNames = (result.suggested_alternative || []).map((nodeId) => getNodeById(nodeId)?.label || nodeId);
-      recommendationEl.textContent = `Suggested alternative: ${altNames.join(' -> ')}.`;
-    }
+    document.getElementById('ai-current-flow').textContent = result.current.flow.toFixed(0);
+    document.getElementById('ai-current-cong').textContent = result.current.congestion.toFixed(3);
+    document.getElementById('ai-current-status').textContent = result.current.status;
 
-    if (Array.isArray(result.suggested_alternative) && result.suggested_alternative.length > 1) {
-      currentPath = result.suggested_alternative;
-      currentPathCompare = [];
-      predictedTrendData = result.trend_data || [];
-      isPredictedOverlay = true;
-      mstEdges = [];
-      dpNodes = [];
-      currentAffectedIntersections = [];
-      currentSignalPlan = {};
+    document.getElementById('ai-pred-flow').textContent = result.prediction.flow.toFixed(0);
+    document.getElementById('ai-pred-cong').textContent = result.prediction.congestion.toFixed(3);
+    document.getElementById('ai-pred-status').textContent = result.prediction.status;
+
+    const absDelta = Math.abs(result.delta).toFixed(3);
+    const block = document.getElementById('ai-change-block');
+    const text = document.getElementById('ai-change-text');
+    let color, msg;
+    if (result.trend === 'INCREASING') {
+      color = 'var(--accent)';
+      msg = `Traffic is INCREASING by ${absDelta}  (congestion ratio ${result.current.congestion.toFixed(3)} → ${result.prediction.congestion.toFixed(3)}).`;
+    } else if (result.trend === 'DECREASING') {
+      color = 'var(--success)';
+      msg = `Traffic is DECREASING by ${absDelta}  (congestion ratio ${result.current.congestion.toFixed(3)} → ${result.prediction.congestion.toFixed(3)}).`;
+    } else {
+      color = 'var(--primary)';
+      msg = `Traffic is STABLE — change of ${absDelta} in congestion ratio.`;
     }
+    if (block) block.style.borderLeftColor = color;
+    if (text) { text.textContent = msg; text.style.color = color; }
   } catch (error) {
     showNotification(error.message || 'Prediction failed');
   }
+}
+
+function populateAiEdgeDropdown() {
+  const sel = document.getElementById('ai-edge-select');
+  if (!sel || !cityEdges.length) return;
+  sel.innerHTML = '<option value="" disabled selected>Pick a road segment…</option>';
+  // De-dupe undirected edges so we don't show A→B and B→A as separate options
+  const seen = new Set();
+  cityEdges.forEach((edge) => {
+    const key = [edge.from, edge.to].sort().join('|');
+    if (seen.has(key)) return;
+    seen.add(key);
+    const fromName = getNodeById(edge.from)?.label || edge.from;
+    const toName = getNodeById(edge.to)?.label || edge.to;
+    const opt = document.createElement('option');
+    opt.value = `${edge.from}|${edge.to}`;
+    opt.textContent = `${fromName} → ${toName}  (${edge.from}-${edge.to})`;
+    sel.appendChild(opt);
+  });
 }
 
 async function calculateRoute() {
@@ -864,8 +876,9 @@ async function calculateRoute() {
   dpSchedule = {};
   currentAffectedIntersections = [];
   currentSignalPlan = {};
-  predictedTrendData = [];
-  isPredictedOverlay = false;
+  lastGreedyResult = null;
+  lastMstResult = null;
+  lastTransitResult = null;
   lastRouteCoordinates = [];
 
   try {
@@ -904,6 +917,10 @@ async function calculateRoute() {
       displayResults(result, mode);
       animatePath();
     } else if (currentAlgorithm === 'greedy') {
+      if (!source || !dest || source === dest) {
+        showNotification('Greedy needs a corridor — pick origin and destination');
+        return;
+      }
       const [routeResult, greedyResult] = await Promise.all([
         fetchRoute(source, dest, mode),
         apiRequest('/traffic/optimize', {
@@ -923,49 +940,38 @@ async function calculateRoute() {
         String(key).replace(/^node_/, '')
       );
       currentSignalPlan = greedyResult?.signal_plan || {};
+      lastGreedyResult = greedyResult;
       if (gmapsBtn) gmapsBtn.style.display = lastRouteCoordinates.length > 1 ? 'block' : 'none';
-      displayResults({
-        ...routeResult,
-        metadata: {
-          ...(routeResult.metadata || {}),
-          greedy: greedyResult,
-        },
-      }, mode);
+      // Pass routeResult only as context for "Route Steps" list — metrics are sourced from greedyResult
+      displayResults(routeResult, mode);
       const improvement = Number(greedyResult?.improvement_percent || 0);
-      showNotification(`Traffic optimization improved throughput by ${improvement.toFixed(1)}% (${currentAffectedIntersections.length} intersections)`);
+      showNotification(`Signals optimized: efficiency ${greedyResult.congestion_metrics.efficiency_score_before.toFixed(2)} → ${greedyResult.congestion_metrics.efficiency_score_after.toFixed(2)} (+${improvement.toFixed(2)}%) across ${currentAffectedIntersections.length} intersections`);
       animatePath();
     } else if (currentAlgorithm === 'prim') {
       const mstResult = await apiRequest('/mst');
       currentPath = [];
       currentPathCompare = [];
-      mstEdges = mstResult.edges.map((edge) => ({ from: edge.source, to: edge.target }));
-      displayResults({
-        path: [],
-        distance: mstResult.total_cost,
-        travel_time: 0,
-        runtime_ms: Number(mstResult.runtime_ms || 0),
-        nodes_explored: Number(mstResult.nodes_explored || mstResult.nodes_connected || 0),
-        traffic_level: 'low',
-        steps: mstResult.critical_facilities.map((name) => ({ target_name: name })),
-        metadata: { mst: mstResult },
-      }, mode);
+      mstEdges = (mstResult.edges || []).map((edge) => ({ from: edge.source, to: edge.target }));
+      lastMstResult = mstResult;
+      displayResults({ path: [], steps: [] }, mode);
       const savings = Number(mstResult.savings || 0).toFixed(1);
       const facilityCount = (mstResult.critical_facilities || []).length;
-      showNotification(`Infrastructure plan: ${mstResult.edges.length} edges, ${facilityCount} critical facilities, ${savings} M EGP savings`);
+      showNotification(`Infrastructure plan: ${mstResult.edges.length} edges chosen, ${facilityCount} critical facilities, ${savings} M EGP saved (${Number(mstResult.runtime_ms).toFixed(3)} ms)`);
     } else if (currentAlgorithm === 'dp') {
+      const capacityInput = document.getElementById('capacity-input');
+      const capacity = Math.max(1, parseInt(capacityInput?.value || '50', 10));
       const transitResult = await apiRequest('/transit/optimize', {
         method: 'POST',
         body: JSON.stringify({
           time_period: currentTimePeriod,
-          capacity: 8,
+          capacity,
         }),
       });
       currentPath = [];
       currentPathCompare = [];
       dpAllocations = transitResult.allocations || {};
       dpSchedule = transitResult.schedule || {};
-      // Try to extract node IDs from schedule keys (some bus_ids encode "src-dst" routes).
-      // Only treat the split as nodes when every part resolves to a known city node.
+      // Derive map-highlight node IDs from schedule keys when those keys encode "src-dst" pairs
       const seen = new Set();
       dpNodes = [];
       Object.keys(dpSchedule).forEach((key) => {
@@ -979,24 +985,12 @@ async function calculateRoute() {
           });
         }
       });
+      lastTransitResult = transitResult;
+      displayResults({ path: [], steps: [] }, mode);
       const metrics = transitResult.optimization_metrics || {};
-      const busesScheduled = Object.keys(dpSchedule).length;
-      const routesAllocated = Object.keys(dpAllocations).length;
-      const passengersCovered = Number(metrics.combined_passengers_covered || 0);
-      displayResults({
-        path: [],
-        distance: passengersCovered,
-        travel_time: Number(metrics.total_cost || 0),
-        runtime_ms: 0,
-        nodes_explored: busesScheduled,
-        traffic_level: 'low',
-        steps: Object.entries(dpSchedule).map(([busId, times]) => ({
-          source_name: busId,
-          target_name: Array.isArray(times) ? times.join(', ') : String(times),
-        })),
-        metadata: { transit: transitResult },
-      }, mode);
-      showNotification(`Transit optimization: ${busesScheduled} buses scheduled across ${routesAllocated} routes, ${passengersCovered} passengers covered`);
+      const buses = Object.keys(dpSchedule).length;
+      const routes = Object.keys(dpAllocations).length;
+      showNotification(`Transit DP: ${buses} bus slots, ${routes} routes allocated within capacity ${capacity}, ${Number(metrics.combined_passengers_covered || 0)} passengers covered (${Number(transitResult.runtime_ms).toFixed(3)} ms)`);
     }
 
     if (mode !== 'emergency') updateRoadFromTraffic();
@@ -1016,8 +1010,83 @@ function setStatLabel(valueElementId, labelText) {
   if (labelEl) labelEl.textContent = labelText;
 }
 
+const ALGO_HINTS = {
+  dijkstra: 'Shortest path between origin and destination (uniform-cost Dijkstra over the road network).',
+  greedy: 'Optimize traffic signal timings along the route from origin to destination using a greedy heuristic. Source/destination define the corridor the optimizer focuses on.',
+  prim: 'Build the minimum spanning infrastructure plan over all candidate (potential) roads. Network-wide — no origin/destination required.',
+  dp: 'Schedule buses and allocate fleet capacity across routes via dynamic programming (weighted interval scheduling + 0/1 knapsack). Network-wide — no origin/destination required.',
+};
+
+const ALGO_BUTTON_LABEL = {
+  dijkstra: 'Calculate Route',
+  greedy: 'Optimize Traffic Signals',
+  prim: 'Generate Infrastructure Plan',
+  dp: 'Optimize Transit Schedule',
+};
+
+const ALGO_PANEL_TITLE = {
+  dijkstra: 'Route Configuration',
+  greedy: 'Signal-Optimization Corridor',
+  prim: 'Infrastructure Planning',
+  dp: 'Transit Schedule Optimizer',
+};
+
+function applyAlgorithmUiMode(algo) {
+  const showSourceDest = (algo === 'dijkstra' || algo === 'greedy');
+  const showMode = (algo === 'dijkstra' || algo === 'greedy');
+  const showCapacity = (algo === 'dp');
+
+  const groups = {
+    source: document.getElementById('form-group-source'),
+    dest: document.getElementById('form-group-dest'),
+    mode: document.getElementById('form-group-mode'),
+    capacity: document.getElementById('form-group-capacity'),
+  };
+  if (groups.source) groups.source.style.display = showSourceDest ? '' : 'none';
+  if (groups.dest) groups.dest.style.display = showSourceDest ? '' : 'none';
+  if (groups.mode) groups.mode.style.display = showMode ? '' : 'none';
+  if (groups.capacity) groups.capacity.style.display = showCapacity ? '' : 'none';
+
+  const title = document.getElementById('input-panel-title');
+  if (title) title.textContent = ALGO_PANEL_TITLE[algo] || 'Configuration';
+
+  const hint = document.getElementById('algo-hint');
+  if (hint) hint.textContent = ALGO_HINTS[algo] || '';
+
+  const btn = document.getElementById('calc-route-btn-label');
+  if (btn) btn.textContent = ALGO_BUTTON_LABEL[algo] || 'Run';
+
+  const compareBtn = document.getElementById('compare-btn');
+  if (compareBtn) compareBtn.style.display = (algo === 'dijkstra') ? '' : 'none';
+}
+
 function displayResults(result, mode, compareResult = null, winner = null) {
-  const isSpecial = currentAlgorithm === 'prim' || currentAlgorithm === 'dp';
+  // Dispatch to algorithm-specific render functions so each one shows REAL backend data,
+  // not a route-finder template with shoehorned values.
+  if (currentAlgorithm === 'greedy' && lastGreedyResult) {
+    renderGreedyPanel(lastGreedyResult, result);
+    renderRouteSteps(result);
+    renderModeBadge(mode);
+    return;
+  }
+  if (currentAlgorithm === 'prim' && lastMstResult) {
+    renderMstPanel(lastMstResult);
+    renderMstEdgesList(lastMstResult);
+    renderModeBadge(mode);
+    return;
+  }
+  if (currentAlgorithm === 'dp' && lastTransitResult) {
+    renderTransitPanel(lastTransitResult);
+    renderTransitScheduleList(lastTransitResult);
+    renderModeBadge(mode);
+    return;
+  }
+  renderRoutePanel(result, compareResult, winner);
+  renderRouteSteps(result);
+  renderModeBadge(mode);
+}
+
+function renderRoutePanel(result, compareResult, winner) {
   const totalTime = Number(result.travel_time || 0);
   const distKm = Number(result.distance || 0);
   const trafficLevel = result.traffic_level || 'low';
@@ -1029,45 +1098,29 @@ function displayResults(result, mode, compareResult = null, winner = null) {
   const trafficEl = document.getElementById('stat-traffic');
   const runtimeEl = document.getElementById('stat-runtime');
   const exploredEl = document.getElementById('stat-explored');
-  const routeStepsEl = document.getElementById('route-steps');
 
-  // Algorithm-aware unit / label so DP and MST do not display nonsense
-  let etaSuffix = ' min';
-  let distSuffix = ' km';
-  let stopsText = result.path ? Math.max(0, result.path.length - 2) + ' stops' : '--';
-  if (currentAlgorithm === 'prim') {
-    etaSuffix = '';
-    distSuffix = ' M EGP';
-    stopsText = `${(result.metadata?.mst?.critical_facilities || []).length} critical facilities`;
-  } else if (currentAlgorithm === 'dp') {
-    etaSuffix = ' cost';
-    distSuffix = ' passengers';
-    const routes = Object.keys(result.metadata?.transit?.allocations || {}).length;
-    stopsText = `${routes} routes`;
-  }
-  setStatLabel('stat-distance', currentAlgorithm === 'prim' ? 'Infrastructure Cost' : (currentAlgorithm === 'dp' ? 'Passengers Covered' : 'Distance'));
-  setStatLabel('stat-eta', currentAlgorithm === 'prim' ? 'Savings (M EGP)' : (currentAlgorithm === 'dp' ? 'Total Cost' : 'ETA'));
-  setStatLabel('stat-stops', currentAlgorithm === 'prim' ? 'Facilities' : (currentAlgorithm === 'dp' ? 'Routes' : 'Stops'));
+  setStatLabel('stat-eta', 'Estimated Time');
+  setStatLabel('stat-distance', 'Distance');
+  setStatLabel('stat-stops', 'Intermediate Stops');
+  setStatLabel('stat-runtime', 'Execution Time');
+  setStatLabel('stat-explored', 'Nodes Explored');
 
-  // For MST, show savings in the ETA cell instead of travel_time
-  const etaValue = currentAlgorithm === 'prim'
-    ? Number(result.metadata?.mst?.savings || 0)
-    : totalTime;
-
-  if (etaEl) animateValue(etaEl, 0, etaValue, 900, etaSuffix);
-  if (distEl) animateValue(distEl, 0, distKm, 900, isSpecial ? distSuffix : ' km');
-  if (stopsEl) stopsEl.textContent = stopsText;
+  if (etaEl) animateValue(etaEl, 0, totalTime, 900, ' min');
+  if (distEl) animateValue(distEl, 0, distKm, 900, ' km');
+  if (stopsEl) stopsEl.textContent = result.path ? Math.max(0, result.path.length - 2) + ' stops' : '--';
 
   if (trafficEl) {
     const bar = trafficEl.querySelector('.traffic-bar');
     const label = trafficEl.querySelector('.traffic-label');
+    const trafficLabelEl = trafficEl.querySelector('.stat-label');
+    if (trafficLabelEl) trafficLabelEl.textContent = 'Traffic Level';
     if (bar) {
       bar.className = 'traffic-bar traffic-' + (trafficLevel === 'severe' ? 'high' : trafficLevel);
       bar.style.width = `${Math.min(100, getPathTraffic(result.path || []) * 100)}%`;
     }
     if (label) label.textContent = trafficLabels[trafficLevel] || trafficLevel;
   }
-  
+
   if (runtimeEl) {
       if (compareResult) {
           runtimeEl.innerHTML = `Dijkstra: ${result.runtime_ms}ms<br/><span style="color:var(--success)">A*: ${compareResult.runtime_ms}ms</span>`;
@@ -1085,7 +1138,6 @@ function displayResults(result, mode, compareResult = null, winner = null) {
 
   // Populate comparison specific cards
   if (compareResult) {
-      // A* is compareResult, Dijkstra is result
       document.getElementById('comp-astar-time').textContent = compareResult.runtime_ms + ' ms';
       document.getElementById('comp-astar-nodes').textContent = compareResult.nodes_explored;
       document.getElementById('comp-astar-dist').textContent = compareResult.distance + ' km';
@@ -1111,34 +1163,208 @@ function displayResults(result, mode, compareResult = null, winner = null) {
         }
       }
   }
+}
 
-  if (routeStepsEl) {
-    routeStepsEl.innerHTML = '';
-    const steps = result.steps || [];
-    steps.forEach((stepData, i) => {
-      const step = document.createElement('div');
-      step.className = 'route-step';
-      let label = stepData.target_name || stepData.source_name || 'Step';
-      if (stepData.source_name && stepData.target_name && stepData.source_name !== stepData.target_name) {
-        label = `${stepData.source_name} → ${stepData.target_name}`;
-      }
-      const dotClass = i === 0 ? 'step-dot start' : i === steps.length - 1 ? 'step-dot end' : 'step-dot';
-      step.innerHTML = `<span class="${dotClass}"></span><span>${label}</span>`;
-      routeStepsEl.appendChild(step);
-      gsap.fromTo(step, { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: 0.5, delay: i * 0.12, ease: 'power3.out' });
-    });
-  }
+function renderRouteSteps(result) {
+  const routeStepsEl = document.getElementById('route-steps');
+  if (!routeStepsEl) return;
+  routeStepsEl.innerHTML = '';
+  const steps = result.steps || [];
+  steps.forEach((stepData, i) => {
+    const step = document.createElement('div');
+    step.className = 'route-step';
+    let label = stepData.target_name || stepData.source_name || 'Step';
+    if (stepData.source_name && stepData.target_name && stepData.source_name !== stepData.target_name) {
+      label = `${stepData.source_name} → ${stepData.target_name}`;
+    }
+    const dotClass = i === 0 ? 'step-dot start' : i === steps.length - 1 ? 'step-dot end' : 'step-dot';
+    step.innerHTML = `<span class="${dotClass}"></span><span>${label}</span>`;
+    routeStepsEl.appendChild(step);
+    gsap.fromTo(step, { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: 0.5, delay: i * 0.12, ease: 'power3.out' });
+  });
+}
 
+function renderModeBadge(mode) {
   const modeBadge = document.getElementById('mode-badge');
-  if (modeBadge) {
-    let modeText = mode === 'emergency' ? '🚨 EMERGENCY' : '🚗 NORMAL';
-    if (currentAlgorithm === 'prim') modeText = '🏗️ MST PLANNING';
-    if (currentAlgorithm === 'dp') modeText = '⏱️ TRANSIT OPT';
-    if (currentAlgorithm === 'greedy') modeText = '🚦 TRAFFIC OPT';
-    
-    modeBadge.textContent = modeText;
-    modeBadge.style.color = mode === 'emergency' ? 'var(--accent)' : 'var(--primary)';
+  if (!modeBadge) return;
+  let modeText = mode === 'emergency' ? '🚨 EMERGENCY' : '🚗 NORMAL';
+  if (currentAlgorithm === 'prim') modeText = '🏗️ MST PLANNING';
+  if (currentAlgorithm === 'dp') modeText = '⏱️ TRANSIT OPT';
+  if (currentAlgorithm === 'greedy') modeText = '🚦 SIGNAL OPT';
+  modeBadge.textContent = modeText;
+  modeBadge.style.color = mode === 'emergency' ? 'var(--accent)' : 'var(--primary)';
+}
+
+// ── ALGORITHM-SPECIFIC METRICS PANELS ────────────────────────────────────
+// Each algorithm has different semantics, so the 6 stat-cards are repurposed
+// per algorithm to show REAL backend values instead of forcing route-style metrics.
+
+function renderGreedyPanel(greedy, routeContext) {
+  const metrics = greedy.congestion_metrics || {};
+  const before = Number(metrics.efficiency_score_before || 0);
+  const after = Number(metrics.efficiency_score_after || 0);
+  const congestion = Number(metrics.global_congestion_index || 0);
+  const improvement = Number(greedy.improvement_percent || 0);
+  const affected = (greedy.affected_intersections || []).length;
+  const signals = Object.keys(greedy.signal_plan || {}).length;
+  const runtimeMs = Number(greedy.runtime_ms || 0);
+
+  setStatLabel('stat-eta', 'Improvement %');
+  setStatLabel('stat-distance', 'Global Congestion');
+  setStatLabel('stat-stops', 'Affected Intersections');
+  setStatLabel('stat-runtime', 'Execution Time');
+  setStatLabel('stat-explored', 'Signals Reconfigured');
+
+  const etaEl = document.getElementById('stat-eta');
+  const distEl = document.getElementById('stat-distance');
+  const stopsEl = document.getElementById('stat-stops');
+  const runtimeEl = document.getElementById('stat-runtime');
+  const exploredEl = document.getElementById('stat-explored');
+
+  if (etaEl) animateValue(etaEl, 0, improvement, 900, ' %');
+  if (distEl) animateValue(distEl, 0, congestion, 900, '');
+  if (stopsEl) stopsEl.textContent = `${affected} intersections`;
+  if (runtimeEl) animateValue(runtimeEl, 0, runtimeMs, 900, ' ms');
+  if (exploredEl) exploredEl.innerHTML = `${signals}  <span style="color:var(--text-secondary); font-size:0.7rem;">(eff. ${before.toFixed(2)} → ${after.toFixed(2)})</span>`;
+
+  const trafficEl = document.getElementById('stat-traffic');
+  if (trafficEl) {
+    const trafficLabelEl = trafficEl.querySelector('.stat-label');
+    const bar = trafficEl.querySelector('.traffic-bar');
+    const label = trafficEl.querySelector('.traffic-label');
+    if (trafficLabelEl) trafficLabelEl.textContent = 'Congestion Index';
+    if (bar) {
+      const cls = congestion >= 0.65 ? 'high' : congestion >= 0.4 ? 'medium' : 'low';
+      bar.className = `traffic-bar traffic-${cls}`;
+      bar.style.width = `${Math.min(100, congestion * 100)}%`;
+    }
+    if (label) label.textContent = `${(congestion * 100).toFixed(1)} %`;
   }
+}
+
+function renderMstPanel(mstResult) {
+  setStatLabel('stat-eta', 'Total Cost (M EGP)');
+  setStatLabel('stat-distance', 'Savings (M EGP)');
+  setStatLabel('stat-stops', 'Edges Selected');
+  setStatLabel('stat-runtime', 'Execution Time');
+  setStatLabel('stat-explored', 'Nodes Connected');
+
+  const totalCost = Number(mstResult.total_cost || 0);
+  const savings = Number(mstResult.savings || 0);
+  const edges = (mstResult.edges || []).length;
+  const runtimeMs = Number(mstResult.runtime_ms || 0);
+  const nodesConnected = Number(mstResult.nodes_connected || mstResult.nodes_explored || 0);
+  const facilities = (mstResult.critical_facilities || []).length;
+
+  const etaEl = document.getElementById('stat-eta');
+  const distEl = document.getElementById('stat-distance');
+  const stopsEl = document.getElementById('stat-stops');
+  const runtimeEl = document.getElementById('stat-runtime');
+  const exploredEl = document.getElementById('stat-explored');
+
+  if (etaEl) animateValue(etaEl, 0, totalCost, 900, '');
+  if (distEl) animateValue(distEl, 0, savings, 900, '');
+  if (stopsEl) stopsEl.textContent = `${edges} candidate edges chosen`;
+  if (runtimeEl) animateValue(runtimeEl, 0, runtimeMs, 900, ' ms');
+  if (exploredEl) exploredEl.innerHTML = `${nodesConnected}  <span style="color:var(--text-secondary); font-size:0.7rem;">(${facilities} critical facilities)</span>`;
+
+  const trafficEl = document.getElementById('stat-traffic');
+  if (trafficEl) {
+    const trafficLabelEl = trafficEl.querySelector('.stat-label');
+    const bar = trafficEl.querySelector('.traffic-bar');
+    const label = trafficEl.querySelector('.traffic-label');
+    if (trafficLabelEl) trafficLabelEl.textContent = 'Coverage';
+    const coverage = cityNodes.length ? Math.min(1, nodesConnected / cityNodes.length) : 0;
+    if (bar) {
+      bar.className = 'traffic-bar traffic-low';
+      bar.style.width = `${coverage * 100}%`;
+    }
+    if (label) label.textContent = `${nodesConnected}/${cityNodes.length} nodes`;
+  }
+}
+
+function renderMstEdgesList(mstResult) {
+  const list = document.getElementById('route-steps');
+  if (!list) return;
+  list.innerHTML = '';
+  const edges = mstResult.edges || [];
+  edges.forEach((edge, i) => {
+    const fromName = getNodeById(edge.source)?.label || edge.source;
+    const toName = getNodeById(edge.target)?.label || edge.target;
+    const cost = Number(edge.metadata?.construction_cost_million_egp || edge.distance || 0).toFixed(1);
+    const step = document.createElement('div');
+    step.className = 'route-step';
+    step.innerHTML = `<span class="step-dot"></span><span>${fromName} ↔ ${toName} <span style="color:var(--text-secondary); font-size:0.75rem;">(${cost} M EGP)</span></span>`;
+    list.appendChild(step);
+    gsap.fromTo(step, { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: 0.4, delay: i * 0.05, ease: 'power3.out' });
+  });
+}
+
+function renderTransitPanel(transit) {
+  const metrics = transit.optimization_metrics || {};
+  const usage = transit.resource_usage || {};
+  const passengers = Number(metrics.combined_passengers_covered || 0);
+  const totalCost = Number(metrics.total_cost || 0);
+  const buses = Object.keys(transit.schedule || {}).length;
+  const routes = Object.keys(transit.allocations || {}).length;
+  const runtimeMs = Number(transit.runtime_ms || 0);
+  const capacity = Number(usage.capacity_limit || 0);
+  const requested = Number(usage.buses_requested || 0);
+
+  setStatLabel('stat-eta', 'Passengers Covered');
+  setStatLabel('stat-distance', 'Total Cost (DP value)');
+  setStatLabel('stat-stops', 'Buses Scheduled');
+  setStatLabel('stat-runtime', 'Execution Time');
+  setStatLabel('stat-explored', 'Routes Selected');
+
+  const etaEl = document.getElementById('stat-eta');
+  const distEl = document.getElementById('stat-distance');
+  const stopsEl = document.getElementById('stat-stops');
+  const runtimeEl = document.getElementById('stat-runtime');
+  const exploredEl = document.getElementById('stat-explored');
+
+  if (etaEl) animateValue(etaEl, 0, passengers, 900, '');
+  if (distEl) animateValue(distEl, 0, totalCost, 900, '');
+  if (stopsEl) stopsEl.textContent = `${buses} bus assignments`;
+  if (runtimeEl) animateValue(runtimeEl, 0, runtimeMs, 900, ' ms');
+  if (exploredEl) {
+    const list = (usage.routes_selected || []).join(', ') || '—';
+    exploredEl.innerHTML = `${routes}  <span style="color:var(--text-secondary); font-size:0.7rem;">(${list})</span>`;
+  }
+
+  const trafficEl = document.getElementById('stat-traffic');
+  if (trafficEl) {
+    const trafficLabelEl = trafficEl.querySelector('.stat-label');
+    const bar = trafficEl.querySelector('.traffic-bar');
+    const label = trafficEl.querySelector('.traffic-label');
+    if (trafficLabelEl) trafficLabelEl.textContent = 'Capacity Utilisation';
+    const utilisation = requested > 0 ? Math.min(1, capacity / requested) : 0;
+    if (bar) {
+      bar.className = `traffic-bar traffic-${utilisation < 0.3 ? 'high' : utilisation < 0.6 ? 'medium' : 'low'}`;
+      bar.style.width = `${utilisation * 100}%`;
+    }
+    if (label) label.textContent = `${capacity} / ${requested} buses`;
+  }
+}
+
+function renderTransitScheduleList(transit) {
+  const list = document.getElementById('route-steps');
+  if (!list) return;
+  list.innerHTML = '';
+  const schedule = transit.schedule || {};
+  const entries = Object.entries(schedule);
+  if (entries.length === 0) {
+    list.innerHTML = '<div class="route-step"><span>No buses scheduled — try increasing capacity</span></div>';
+    return;
+  }
+  entries.forEach(([busId, times], i) => {
+    const step = document.createElement('div');
+    step.className = 'route-step';
+    const timeStr = Array.isArray(times) ? times.join(', ') : String(times);
+    step.innerHTML = `<span class="step-dot"></span><span>${busId} <span style="color:var(--text-secondary); font-size:0.75rem;">@ ${timeStr}</span></span>`;
+    list.appendChild(step);
+    gsap.fromTo(step, { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: 0.4, delay: i * 0.04, ease: 'power3.out' });
+  });
 }
 
 function getPathTraffic(path) {
@@ -1373,10 +1599,6 @@ function renderCanvas(canvas, ctx, path, isLeft) {
         drawGreedyOverlay(ctx, w, h);
     }
 
-    if (isPredictedOverlay && path.length > 1) {
-        drawPredictedPath(ctx, w, h, path, predictedTrendData);
-    }
-
     drawNodes(ctx, w, h, path);
 
     if (currentAlgorithm === 'dp') {
@@ -1408,37 +1630,6 @@ function drawGreedyOverlay(ctx, w, h) {
     });
 }
 
-function drawPredictedPath(ctx, w, h, path, trendData) {
-    if (path.length < 2) return;
-    const dashOffset = -(performance.now() * 0.04) % 24;
-    for (let i = 0; i < path.length - 1; i++) {
-        const fromId = path[i];
-        const toId = path[i + 1];
-        const curve = edgeCurves.get(`${fromId}_${toId}`) || edgeCurves.get(`${toId}_${fromId}`);
-        if (!curve) continue;
-        const points = getCurvePointsAbs(curve, w, h);
-        if (!points || points.length === 0) continue;
-        const isReverse = !edgeCurves.has(`${fromId}_${toId}`);
-        const ordered = isReverse ? [...points].reverse() : points;
-        const ratio = Array.isArray(trendData) && trendData.length > 0
-            ? Number(trendData[Math.min(i, trendData.length - 1)]?.congestion_ratio || 0)
-            : 0;
-        const r = Math.round(80 + ratio * 175);
-        const g = Math.round(200 - ratio * 150);
-        const b = Math.round(255 - ratio * 80);
-        ctx.beginPath();
-        ctx.moveTo(ordered[0].x, ordered[0].y);
-        for (let j = 1; j < ordered.length; j++) ctx.lineTo(ordered[j].x, ordered[j].y);
-        ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, 0.85)`;
-        ctx.lineWidth = 3.5;
-        ctx.setLineDash([14, 8]);
-        ctx.lineDashOffset = dashOffset;
-        ctx.lineCap = 'round';
-        ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.lineDashOffset = 0;
-    }
-}
 
 function drawGrid(ctx, w, h) {
   ctx.strokeStyle = 'rgba(0, 195, 255, 0.018)';

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from time import perf_counter
+
 from fastapi import APIRouter, Depends
 
 from Backend.api.dependencies import get_runtime
@@ -64,6 +66,7 @@ def get_mst(runtime: BackendRuntime = Depends(get_runtime)):
 
 @router.post("/api/traffic/optimize", response_model=TrafficOptimizeResponse)
 def optimize_traffic(request: TrafficOptimizeRequest, runtime: BackendRuntime = Depends(get_runtime)):
+    started = perf_counter()
     emergency_path = None
     if request.mode.value == "emergency":
         if not request.source or not request.destination:
@@ -93,6 +96,7 @@ def optimize_traffic(request: TrafficOptimizeRequest, runtime: BackendRuntime = 
         improvement = 0.0
     else:
         improvement = ((optimized_score - baseline_score) / baseline_score) * 100.0
+    runtime_ms = (perf_counter() - started) * 1000
 
     return {
         "signal_plan": signal_plan,
@@ -104,11 +108,13 @@ def optimize_traffic(request: TrafficOptimizeRequest, runtime: BackendRuntime = 
         },
         "improvement_percent": round(improvement, 3),
         "affected_intersections": sorted(signal_plan.keys()),
+        "runtime_ms": round(runtime_ms, 3),
     }
 
 
 @router.post("/api/transit/optimize", response_model=TransitOptimizeResponse)
 def optimize_transit(request: TransitOptimizeRequest, runtime: BackendRuntime = Depends(get_runtime)):
+    started = perf_counter()
     schedule_data, resource_data = runtime.build_default_transit_inputs(request.time_period.value)
     if request.schedule_data:
         schedule_data = [item.model_dump(exclude_none=True) for item in request.schedule_data]
@@ -118,6 +124,7 @@ def optimize_transit(request: TransitOptimizeRequest, runtime: BackendRuntime = 
     allocation = runtime.transit_service.allocator.run(resource_data, capacity=request.capacity)
     scheduling = runtime.transit_service.scheduler.run(schedule_data, capacity=request.capacity)
     combined = runtime.transit_service.optimize(schedule_data, resource_data, capacity=request.capacity)
+    runtime_ms = (perf_counter() - started) * 1000
 
     buses_requested = sum(int(item.get("buses", 0)) for item in resource_data)
     selected_routes = list(allocation["schedule"].keys())
@@ -138,4 +145,5 @@ def optimize_transit(request: TransitOptimizeRequest, runtime: BackendRuntime = 
             "scheduled_passengers_covered": scheduling["metadata"]["total_passengers_covered"],
             "combined_passengers_covered": combined["metadata"]["total_passengers_covered"],
         },
+        "runtime_ms": round(runtime_ms, 3),
     }
