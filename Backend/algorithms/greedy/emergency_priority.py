@@ -41,36 +41,23 @@ class EmergencyPrioritySystem(BaseAlgorithm):
         )
      
         if not emergency_path:
-            return {
-                "signal_plan": base_plan,
-                "metadata": {
-                    "emergency_override": False
-                }
-            }
-     
-        emergency_path = [str(node) for node in emergency_path]
-     
-        print("\nEmergency Path:")
-        print(" → ".join(emergency_path))
-     
-        optimized_nodes = []
-     
+            return base_plan
+
+        emergency_path = [str(n) for n in emergency_path]
+
         for i in range(len(emergency_path) - 1):
      
             current_node = emergency_path[i]
             next_node = emergency_path[i + 1]
-     
             node_key = f"node_{next_node}"
      
             if node_key not in base_plan:
-                print(f"Skipping {node_key}: no signal plan found.")
                 continue
      
             edges = base_plan[node_key]
-     
             possible_edges = [
                 f"{current_node}-{next_node}",
-                f"{next_node}-{current_node}"
+                f"{next_node}-{current_node}",
             ]
      
             found = False
@@ -78,32 +65,12 @@ class EmergencyPrioritySystem(BaseAlgorithm):
             for edge_id in possible_edges:
      
                 if edge_id in edges:
-     
-                    self.apply_emergency_boost(
-                        edges,
-                        edge_id
-                    )
-     
-                    print(
-                        f"Emergency priority applied "
-                        f"to {edge_id} at {node_key}"
-                    )
-     
-                    optimized_nodes.append(node_key)
-     
+                    edges[edge_id] = 90
                     found = True
                     break
      
             # Fallback handling
             if not found:
-     
-                print(
-                    f"No exact edge match at {node_key}. "
-                    f"Applying fallback optimization."
-                )
-     
-                # Greedy fallback:
-                # Increase all signals moderately
                 for edge in edges:
                     edges[edge] = max(edges[edge], 70)
      

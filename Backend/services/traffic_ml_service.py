@@ -12,6 +12,12 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
 
+import sys
+# Fix import path for running script directly
+ROOT = Path(__file__).resolve().parent.parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.append(str(ROOT))
+
 from Backend.models.edge import Edge
 from Backend.models.enums import TimePeriod
 
@@ -135,8 +141,8 @@ class TrafficMLService:
             return self
         try:
             self.load_model()
-        except Exception as e:
-            logger.warning(f"Failed to load ML model ({e}); training a fresh model.")
+        except (OSError, EOFError, ValueError, KeyError, AttributeError, ImportError) as exc:
+            logger.warning("Failed to load ML model (%s); training a fresh model.", exc)
         if not self._is_trained:
             self.train()
             self.save_model()
