@@ -476,8 +476,9 @@ section {
 }
 
 .team-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 24px;
   max-width: 1000px;
   width: 100%;
@@ -486,6 +487,7 @@ section {
 .team-card {
   text-align: center;
   padding: 36px 24px;
+  flex: 0 1 220px;
 }
 
 .team-avatar {
