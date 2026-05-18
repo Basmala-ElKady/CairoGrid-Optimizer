@@ -34,6 +34,7 @@ class TransitService:
 
         return {
             "schedule": combined_schedule,
+            "route": allocation_result.get("route", []) + scheduling_result.get("route", []),
             "cost": total_cost,
             "metadata": {"total_passengers_covered": total_passengers},
         }
